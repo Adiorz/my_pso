@@ -7,6 +7,7 @@ std::vector<double> first_derivative(std::vector<double> &data, double step);
 class PSO {
 private:
 	size_t id;
+	std::vector<PSO *> *psos;
 
 	size_t numofparticles;
 	size_t numofdims;
@@ -85,6 +86,8 @@ public:
 			std::vector<double> *realdata,
 			size_t numofiterations,
 			size_t id,
+			size_t skip_low = 0,
+			size_t skip_high = 0,
 			float c1 = 2, float c2 = 2);
 
 //	PSO(const PSO& c);
@@ -98,4 +101,32 @@ public:
 	std::vector<float> getgbest();
 
 	float getgbestfit();
+
+	size_t getId() { return id; }
+
+	void setPSOsVector(std::vector<PSO *> *psos) {
+		this->psos = psos;
+	}
+
+	bool should_skip(size_t freq) {
+		float freq_by_idx = freq*fs/(numofsamples_2-1)/2;
+		if(freq_by_idx > skip_low && freq_by_idx < skip_high)
+			return true;
+		else
+			return false;
+	}
+
+	bool should_skip_2(size_t freq) {
+		float freq_by_idx = freq*fs/(numofsamples_2-1)/2;
+		if(freq_by_idx > 0.7*skip_high && freq_by_idx < 1.3*skip_high)
+			return true;
+		else
+			return false;
+	}
+
+	std::vector<float> getXat(size_t i) { return X.at(i); }
+
+	void setLowSkip(size_t skip) { skip_low = skip; }
+
+	void setHighSkip(size_t skip) { skip_high = skip; }
 };

@@ -33,4 +33,10 @@ private:
 
 double min(double *values, size_t size);
 
+// A binary search based function that returns index of a peak element
+int findPeakUtil(std::vector<double> arr, int low, int high);
+
+// A wrapper over recursive function findPeakUtil()
+int findPeak(std::vector<double> arr);
+
 #endif /* ADDITIONAL_H_ */

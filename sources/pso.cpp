@@ -99,10 +99,30 @@ float PSO::fitnessfunc_singleparticle(size_t p) {
 	fft(response, A, P);
 
 	for(size_t j = 0; j < numofsamples_2; ++j) {
-		float this_a = this->A[j];
-		float a = A[j];
-		float residue = this->A[j] - A[j];
+		//float real = should_skip(j) ? 0. : A[j];
+		float residue = 0.;
+		//residue = (id != 0) ? ((psos->at(id - 1))->A[j] + this->A[j] - A[j]) : this->A[j] - A[j];
+		residue = this->A[j] - A[j];
+		//if (!should_skip(j))
 		fitness += residue*residue*residue*residue;
+
+		size_t f = skip_high*fs/(numofsamples_2-1)/2;
+		size_t f_07 = 0.7*skip_high*fs/(numofsamples_2-1)/2;
+		size_t f_13 = 1.3*skip_high*fs/(numofsamples_2-1)/2;
+
+		if (should_skip_2(j)) {
+			float penalty = 0.;
+			if (j < f) {
+				penalty = (j-f_07)/(float)(f-f_07);
+				//std::cout << "left: " << penalty << std::endl;
+				//penalty = (j)/(float)(f);
+			}
+			else {
+				penalty = (f_13-j)/(float)(f_13-f);
+				//std::cout << "right: " << penalty << std::endl;
+			}
+			fitness *= abs(A[j])*(1. + penalty);
+		}
 	}
 
 	return fitness;
@@ -245,6 +265,8 @@ PSO::PSO(	size_t numofparticles,
 			std::vector<double> *realdata,
 			size_t numofiterations,
 			size_t id,
+			size_t skip_low,
+			size_t skip_high,
 			float c1, float c2) {
 
 	this->id = id;
@@ -253,6 +275,8 @@ PSO::PSO(	size_t numofparticles,
 	this->numofiterations = numofiterations;
 	this->numofsamples = realdata->size();
 	this->numofsamples_2 = size_t(numofsamples/2)+1;
+	this->skip_low = skip_low;
+	this->skip_high = skip_high;
 	this->c1 = c1;
 	this->c2 = c2;
 
@@ -285,74 +309,26 @@ PSO::PSO(	size_t numofparticles,
 	//generator = std::default_random_engine(seed);
 	generator = std::default_random_engine();
 	distribution = std::uniform_real_distribution<float>(0.0, 1.0);
-	this->skip_low  = 0;
-	this->skip_high = 0;
-
-	std::cout << "this: " << this << ", id: " << id << ", A: " << &A << std::endl;
+//	this->skip_low  = 0;
+//	this->skip_high = 700;
 
 	fft(*this->realdata, A, P);
 
-	std::cout << "this: " << this << ", id: " << id << ", A: " << &A << std::endl;
-
-	std::cout << skip_low << std::endl;
-	std::cout << skip_high << std::endl;
-	std::cout << "-----------------------------------------" << std::endl;
-	for (size_t i = 0; i < numofsamples_2; ++i) {
-		float freq_by_idx = i*fs/(numofsamples_2-1)/2;
-		if(freq_by_idx > skip_low && freq_by_idx < skip_high) {
-			A[i] = 0;
-			//std::cout << freq_by_idx << " skipped" <<std::endl;
-		}
-	}
-	std::cout << "-----------------------------------------" << std::endl;
+//	std::cout << skip_low << std::endl;
+//	std::cout << skip_high << std::endl;
+//	std::cout << "-----------------------------------------" << std::endl;
+//	for (size_t i = 0; i < numofsamples_2; ++i) {
+//		if (should_skip(i))
+//				A[i] = 0;
+//	}
+//	std::cout << "-----------------------------------------" << std::endl;
 
 	init_max_velocities();
 	initpopulation();
 
 	fitnessfunc();
-//	fitnessfunc_multi();
 	calcgbest(true);
 }
-
-//PSO::PSO(const PSO& c) {
-//	std::cout << "Copy constructor" << std::endl;
-//
-//	id = c.id;
-//	numofparticles = c.numofparticles;
-//	numofdims = c.numofdims;
-//	numofiterations = c.numofiterations;
-//	numofsamples = c.numofsamples;;
-//
-//	numofsamples_2 = c.numofsamples_2;
-//
-//	V = c.V;
-//	X = c.X;
-//	Xmax = c.Xmax;
-//	Xmin = c.Xmin;
-//	Vmax = c.Vmax;
-//	Vmin = c.Vmin;
-//	pbests = c.pbests;
-//	pbestfits = c.pbestfits;
-//	fitnesses = c.fitnesses;
-//	gbestfit = c.gbestfit;
-//
-//	gbest = c.gbest;
-//	worsts = c.worsts;
-//	meanfits = c.meanfits;
-//	bests = c.bests;
-//	c1 = c.c1;
-//	c2 = c.c2;
-//
-//    w = c.w;
-//    minfit = c.minfit;
-//    minfitidx = c.minfitidx;
-//
-//    realdata = c.realdata;
-//    time = c.time;
-//    fs = c.fs;	// sampling frequency
-//    A = c.A;
-//    P = c.P;
-//}
 
 void PSO::run() {
 	std::map<size_t, bool> prog;
@@ -367,6 +343,15 @@ void PSO::run() {
 		}
 		if (numofiterations)
 			w = 0.9 - 0.7 * t / numofiterations;
+
+		//std::cout << "id: " << id << ",low: " << skip_low << ", high: " << skip_high << std::endl;
+
+//		if (id != 0) {
+//			//PSO *_pso = psos->at(id - 1);
+//			//std::cout << "id: " << id << ", fre1(" << (psos->at(id - 1))->getId() << "): " << (psos->at(id - 1))->getgbest().at(1)/2/M_PI << std::endl;
+//			skip_low = (psos->at(id - 1))->getgbest().at(1)/2/M_PI * 0.75;
+//			skip_high = (psos->at(id - 1))->getgbest().at(1)/2/M_PI * 1.25;
+//		}
 
 		for(size_t i = 0; i < numofparticles; i++)
 		{

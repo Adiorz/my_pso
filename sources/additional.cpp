@@ -132,3 +132,30 @@ double min(double *values, size_t size) {
 	}
 	return min;
 }
+
+// A binary search based function that returns index of a peak element
+int findPeakUtil(std::vector<double> arr, int low, int high) {
+	size_t n = arr.size();
+    // Find index of middle element
+	size_t mid = low + (high - low)/2;  /* (low + high)/2 */
+
+    // Compare middle element with its neighbours (if neighbours exist)
+    if ((mid == 0 || arr[mid-1] <= arr[mid]) &&
+            (mid == n-1 || arr[mid+1] <= arr[mid]))
+        return mid;
+
+    // If middle element is not peak and its left neighbour is greater
+    // than it, then left half must have a peak element
+    else if (mid > 0 && arr[mid-1] > arr[mid])
+        return findPeakUtil(arr, low, (mid -1));
+
+    // If middle element is not peak and its right neighbour is greater
+    // than it, then right half must have a peak element
+    else return findPeakUtil(arr, (mid + 1), high);
+}
+
+// A wrapper over recursive function findPeakUtil()
+int findPeak(std::vector<double> arr) {
+	size_t n = arr.size();
+    return findPeakUtil(arr, 0, n-1);
+}
