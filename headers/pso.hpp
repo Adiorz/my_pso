@@ -2,12 +2,20 @@
 #include <ctime>
 #include <random>
 
+#include <mutex>
+#include <condition_variable>
+
+#include "../headers/additional.hpp"
+
 std::vector<double> first_derivative(std::vector<double> &data, double step);
 
 class PSO {
 private:
 	size_t id;
-	std::vector<PSO *> *psos;
+	bool initialized = false;
+
+	static bool freq_set;
+	static bool freq_ready;
 
 	size_t numofparticles;
 	size_t numofdims;
@@ -42,6 +50,10 @@ private:
     float fs;	// sampling frequency
     std::vector<float> A;
     std::vector<float> P;
+
+    std::vector<float> *found_freqs;
+	std::mutex *m;
+	std::condition_variable *cv;
 
     float init_param(size_t j);
 
@@ -86,15 +98,12 @@ public:
 			std::vector<double> *realdata,
 			size_t numofiterations,
 			size_t id,
+			std::vector<float> *found_freqs,
+			std::mutex *m,
+			std::condition_variable *cv,
 			size_t skip_low = 0,
 			size_t skip_high = 0,
 			float c1 = 2, float c2 = 2);
-
-//	PSO(const PSO& c);
-
-//	PSO & operator=(const PSO &) {
-//		std::cout << "Assignment operator" << std::endl;
-//	}
 
 	void run();
 
@@ -103,10 +112,6 @@ public:
 	float getgbestfit();
 
 	size_t getId() { return id; }
-
-	void setPSOsVector(std::vector<PSO *> *psos) {
-		this->psos = psos;
-	}
 
 	bool should_skip(size_t freq) {
 		float freq_by_idx = freq*fs/(numofsamples_2-1)/2;

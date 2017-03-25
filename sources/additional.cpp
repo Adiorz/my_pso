@@ -4,19 +4,6 @@
 #include <algorithm>
 #include <iostream>
 
-//void calculaterealdata(std::vector<float> &target, size_t numofsamples) {
-//	for(size_t i = 0; i < numofsamples; ++i) {
-//		float t = i/samplingrate;
-//		target.at(i) = sin(t);
-//	}
-//}
-
-void donothing(std::vector<float> *realdata, std::vector<float> &fitnesses, std::vector< std::vector<float> > &X) {
-//		,
-//		size_t start, size_t end) {
-	;
-}
-
 DataStream::DataStream(std::string file_name, size_t column, size_t number) {
 	std::ifstream data_stream(file_name);
 	if (data_stream)
@@ -61,20 +48,6 @@ static bool abs_compare(int a, int b)
 {
     return (std::abs(a) < std::abs(b));
 }
-
-//std::vector<double> first_derivative(std::vector<double> &data, double step) {
-//	std::vector<double> derivative(data.size());
-//	for (size_t i = 0; i < data.size(); ++i) {
-//		if ((i == 0) || (i == data.size() - 1))
-//			derivative[i] = data[i];
-//		else {
-//			double tmp = data[i-1] + data[i+1];
-//			tmp /= (2*step);
-//			derivative[i] = tmp;
-//		}
-//	}
-//	return derivative;
-//}
 
 void init_minmax(std::vector<float> &xmin, std::vector<float> &xmax, size_t numofdims, std::vector<double> &data) {
     xmin = std::vector<float>(numofdims);
@@ -133,29 +106,71 @@ double min(double *values, size_t size) {
 	return min;
 }
 
-// A binary search based function that returns index of a peak element
-int findPeakUtil(std::vector<double> arr, int low, int high) {
-	size_t n = arr.size();
-    // Find index of middle element
-	size_t mid = low + (high - low)/2;  /* (low + high)/2 */
+//void findMaximas(std::vector<double> &v, std::vector<size_t> &idx) {
+//	for (unsigned int i = 1; i < v.size(); ++i) {
+//		if (v[i] > v[i-1]) {
+//		   unsigned int j = i;
+//		   while (v[j] == v[j+1])
+//			   ++j;
+//		   ++j;
+//		   if (v[j] < v[i]) {
+//			   idx.push_back(i);
+//			   i = j;
+//		   }
+//		}
+//	}
+//}
 
-    // Compare middle element with its neighbours (if neighbours exist)
-    if ((mid == 0 || arr[mid-1] <= arr[mid]) &&
-            (mid == n-1 || arr[mid+1] <= arr[mid]))
-        return mid;
-
-    // If middle element is not peak and its left neighbour is greater
-    // than it, then left half must have a peak element
-    else if (mid > 0 && arr[mid-1] > arr[mid])
-        return findPeakUtil(arr, low, (mid -1));
-
-    // If middle element is not peak and its right neighbour is greater
-    // than it, then right half must have a peak element
-    else return findPeakUtil(arr, (mid + 1), high);
+void findMinimas(std::vector<float> &v, size_t start, size_t end, std::vector<size_t> &idx) {
+	for (unsigned int i = start+1; i < end; ++i) {
+	   if (v[i] < v[i-1]) {
+		   unsigned int j = i;
+		   while (v[j] == v[j+1]) {
+			   ++j;
+		   }
+		   ++j;
+		   if (v[j] > v[i]) {
+			   idx.push_back(i);
+			   i = j;
+		   }
+	   }
+	}
 }
 
-// A wrapper over recursive function findPeakUtil()
-int findPeak(std::vector<double> arr) {
-	size_t n = arr.size();
-    return findPeakUtil(arr, 0, n-1);
+void findMinima(std::vector<float> &v, size_t maxIDx, size_t &idxL, size_t &idxR) {
+   if (maxIDx <= 3)
+       idxL = 0;
+   else {
+       std::vector<size_t> minsIDXLeft;
+       std::vector<size_t> minsIDXLeft2;
+       std::vector<float> minsLeft;
+       findMinimas(v, 0, maxIDx, minsIDXLeft);
+       if (minsIDXLeft.size() <= 3)
+           idxL = minsIDXLeft[minsIDXLeft.size()-1];
+       else {
+           for (size_t i = 0; i < minsIDXLeft.size(); ++i) {
+               minsLeft.push_back(v[minsIDXLeft[i]]);
+           }
+           findMinimas(minsLeft, 0, minsLeft.size(), minsIDXLeft2);
+           idxL = minsIDXLeft[minsIDXLeft2[minsIDXLeft2.size() - 1]];
+       }
+   }
+
+   if (v.size() - maxIDx <= 3)
+       idxR = 0;
+   else {
+       std::vector<size_t> minsIDXRight;
+       std::vector<size_t> minsIDXRight2;
+       std::vector<float> minsRight;
+       findMinimas(v, maxIDx, v.size(), minsIDXRight);
+       if (minsIDXRight.size() <= 3)
+           idxR = minsIDXRight[minsIDXRight.size()-1];
+       else {
+           for (size_t i = 0; i < minsIDXRight.size(); ++i) {
+               minsRight.push_back(v[minsIDXRight[i]]);
+           }
+           findMinimas(minsRight, 0, minsRight.size(), minsIDXRight2);
+           idxR = minsIDXRight[minsIDXRight2[minsIDXRight2.size() - 1]];
+       }
+   }
 }

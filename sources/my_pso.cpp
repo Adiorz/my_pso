@@ -19,6 +19,9 @@ using namespace std;
 
 #include <thread>
 
+#include <mutex>
+#include <condition_variable>
+
 #define PLOT
 #ifdef PLOT
 #include "../headers/scatter.h"
@@ -34,19 +37,22 @@ const float samplingrate = 50; // samples per second
 using namespace std;
 
 
-
 int main(int argc, const char ** argv)
 {
 
     size_t numofparticles = atoi(argv[1]);
     size_t numofiterations = atoi(argv[2]);
+    std::string file_name(argv[3]);
+    std::string deriv(argv[4]);
 
 //	DataStream time("data/input.lvm", 0, 5000);
 //	DataStream channel0("data/input.lvm", 1, 5000);
 //	DataStream time("data/bp2_mod_45_01.lvm", 0, 5000);
 //	DataStream channel0("data/bp2_mod_45_01.lvm", 1, 5000);
-	DataStream time("data/bp2_mod_90_01.lvm", 0, 5000);
-	DataStream channel0("data/bp2_mod_90_01.lvm", 1, 5000);
+//	DataStream time("data/bp2_mod_90_01.lvm", 0, 5000);
+//	DataStream channel0("data/bp2_mod_90_01.lvm", 1, 5000);
+	DataStream time(file_name, 0, 5000);
+	DataStream channel0(file_name, 1, 5000);
 	size_t numofsamples = time.size();
 	std::vector<double> channel0_real	(channel0.get());
 	std::vector<double> time_real		(time.get());
@@ -62,6 +68,10 @@ int main(int argc, const char ** argv)
 	fft(*used_data, A, P);
 	//fft(data_derivative, A, P);
 
+	if (deriv == "deriv") {
+		std::cout << "use signal derivative as input" << std::endl;
+		used_data = &data_derivative;
+	}
 	size_t max_A_idx = std::distance(A.begin(), std::max_element(A.begin(), A.end()));
 	std::cout << "Original dominating amp: " << A[max_A_idx] << std::endl;
 	std::cout << "Original dominating freq: " << freq[max_A_idx] << std::endl;
@@ -70,19 +80,22 @@ int main(int argc, const char ** argv)
 
 	size_t t_num = std::thread::hardware_concurrency();
 	t_num = 1;
-	std::cout << "Number of detected threads: " << t_num << std::endl;
+	//std::cout << "Number of detected threads: " << t_num << std::endl;
 
 	std::vector< std::vector<float> > init(numofparticles);
 	std::vector<float> xmin, xmax;
 	init_minmax(xmin, xmax, numofdims, channel0_real);
 
     std::vector<std::thread> threads(t_num);
+
+    std::vector<float> *found_freqs = new std::vector<float>(2);
+	std::mutex m;
+	std::condition_variable cv;
+
     std::vector<PSO*> *psos = new std::vector<PSO*>();
-	psos->push_back(new PSO(numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, 0));
-	psos->at(0)->setPSOsVector(psos);
+	psos->push_back(new PSO(numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, 0, found_freqs, &m, &cv));
     for (size_t p = 1; p < t_num; ++p) {
-    	PSO *pso = new PSO(numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, p);
-    	pso->setPSOsVector(psos);
+    	PSO *pso = new PSO(numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, p, found_freqs, &m, &cv);
     	psos->push_back(pso);
     	threads[p] = std::thread(&PSO::run, std::ref(*pso));
     }
@@ -91,27 +104,27 @@ int main(int argc, const char ** argv)
     for (size_t p = 1; p < psos->size(); ++p) {
     	threads[p].join();
     }
-
-//	float freq_by_idx = (psos->at(0)->getgbest().at(1)/2/M_PI)*fs/(((size_t)(numofsamples/2)+1)-1)/2;
-//	size_t peak = findPeakUtil(*used_data, 0, freq_by_idx);
-//    std::cout << "peak: " << peak << std::endl;
-    //std::cout << "peak: " << peak << std::endl;
-
-    //size_t low = 0.7*psos->at(0)->getgbest().at(1)/2/M_PI;
-    //size_t high = 1.3*psos->at(0)->getgbest().at(1)/2/M_PI;
     size_t high = psos->at(0)->getgbest().at(1)/2/M_PI;
+    //size_t high = 432.888;
 
-    PSO second = PSO(numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, 1, 0, high);
-    second.run();
-
-//    for (size_t p = 0; p < t_num; ++p) {
-//    	for (size_t d = 0; d < numofdims; ++d)
-//    		std::cout << psos[p].getgbest().at(d) << std::endl;;
-//    }
+    std::cout << "first:" << std::endl;
+    for (size_t p = 0; p < t_num; ++p) {
+    	for (size_t d = 0; d < numofdims; ++d)
+    		std::cout << psos->at(p)->getgbest().at(d) << std::endl;
+    }
     for (size_t p = 0; p < t_num; ++p) {
     	std::cout << "freq: " << psos->at(p)->getgbest().at(1)/2/M_PI << std::endl;
         std::cout << "fitness: " << psos->at(p)->getgbestfit() <<endl;
     }
+
+    PSO second = PSO(numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, 1, found_freqs, &m, &cv, 0, high);
+    second.run();
+
+    std::cout << "second:" << std::endl;
+	std::cout << second.getgbest().at(0) << std::endl;
+	std::cout << second.getgbest().at(1) << std::endl;
+	std::cout << second.getgbest().at(2) << std::endl;
+	std::cout << second.getgbest().at(3) << std::endl;
 	std::cout << "freq: " << second.getgbest().at(1)/2/M_PI << std::endl;
     std::cout << "fitness: " << second.getgbestfit() <<endl;
 
@@ -165,8 +178,9 @@ int main(int argc, const char ** argv)
     w->setXArray(freq[0], freq[numofsamples_2-1]);
     //std::cout << "min: " << min_val << std::endl;
     w->setYArray(min_val, 1.1*20*log(A[max_A_idx]));
-    w->display(argc-1, argv+2);
+    w->display(argc-3, argv+4);
     delete w;
+    delete found_freqs;
     delete[] A_approx;
 #endif
     for (size_t i = 0; i < t_num; ++i)
