@@ -201,6 +201,12 @@ void PSO::update() {
 			V.at(i).at(j) = update_velocity(w, X.at(i).at(j), V.at(i).at(j), Vmin[j], Vmax[j], gbest.at(j), pbests.at(i).at(j), c1, c2);
 			// update position
 			X.at(i).at(j) = update_position(X.at(i).at(j), V.at(i).at(j), Xmin[j], Xmax[j]);
+			if (j == 1) {
+				if (id == 0)
+					X.at(i).at(j) = 123.707*2*M_PI;
+				if (id == 1)
+					X.at(i).at(j) = 948.702*2*M_PI;
+			}
 		}
 	}
 }
@@ -344,3 +350,53 @@ void PSO::do_nothing() {
 
 bool PSO::freq_set = false;
 bool PSO::freq_ready = false;
+
+float PSO_improve::calc_response(float amp, float omega, float phase, float bump, float t) {
+	return amp*sin(omega*sqrt(1-(bump/omega)*(bump/omega))*t+phase)*exp(-bump*t);
+}
+
+float PSO_improve::fitnessfunc_singleparticle(size_t p) {
+	float fitness = 0.f;
+	while (X[p][3] > X[p][1]) {
+		float high = Xmax[3];
+		float low = Xmin[3];
+		float rand = distribution(generator);
+		float init_position = rand * (high-low) + low;
+		X[p][3] = init_position;
+	}
+	float amp = X[p][0];
+	float omega = X[p][1];
+	float phase = X[p][2];
+	float bump = X[p][3];
+
+	std::vector<double> response(numofsamples, 0);
+	for(size_t j = 0; j < numofsamples; ++j) {
+		float t = time->at(j);
+		response[j] += calc_response(amp, omega, phase, bump, t);
+	}
+
+	std::vector<float> A;
+	std::vector<float> P;
+	fft(response, A, P);
+
+	size_t f;
+	size_t f_l;
+	size_t f_r;
+	if (id == 1) {
+		f = skip_high*fs/(numofsamples_2-1)/2;
+		f_l = 0.7*skip_high*fs/(numofsamples_2-1)/2;
+		f_r = 1.3*skip_high*fs/(numofsamples_2-1)/2;
+		findMinima(this->A, f, f_l, f_r);
+	}
+
+	for(size_t j = 0; j < numofsamples_2; ++j) {
+		float residue = 0.;
+		//focus only in the specified range
+		if (j >= f_l && j <= f_r) {
+			residue = this->A[j] - A[j];
+			fitness += residue*residue*residue*residue;
+		}
+	}
+
+	return fitness;
+}

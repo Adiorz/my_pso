@@ -1,16 +1,22 @@
 #include <vector>
+#include <deque>
+#include <algorithm>
 #include <ctime>
 #include <random>
+
+#include <iostream>
 
 #include <mutex>
 #include <condition_variable>
 
 #include "../headers/additional.hpp"
 
+#define HISTORY_NUM 5
+
 std::vector<double> first_derivative(std::vector<double> &data, double step);
 
 class PSO {
-private:
+protected:
 	size_t id;
 	bool initialized = false;
 
@@ -31,11 +37,15 @@ private:
 	std::vector<float> Vmax;
 	std::vector<float> Vmin;
     std::vector< std::vector<float> > pbests;
+//	std::vector< std::deque< std::vector<float> > > pbest_history;
+//	std::vector< std::deque<float> > pbest_fits_history;
     std::vector<float> pbestfits;
     std::vector<float> fitnesses;
     float gbestfit;
 
 	std::vector<float> gbest;
+//	std::deque< std::vector<float> > gbest_history;
+//	std::deque<float> gbest_fits_history;
 	std::vector<float> worsts;
 	std::vector<float> meanfits;
 	std::vector<float> bests;
@@ -44,6 +54,7 @@ private:
     float w;
     float minfit;
     int   minfitidx;
+    int   minfithistoryidx;
 
     std::vector<double> *realdata;
     std::vector<double> *time;
@@ -77,6 +88,24 @@ private:
 
     void update();
 
+//    void update_gbest_history(std::vector<float> gbests, float fit) {
+//    	if (gbest_history.size() >= HISTORY_NUM) {
+//    		gbest_history.pop_front();
+//    		gbest_fits_history.pop_front();
+//    	}
+//    	gbest_history.push_back(gbests);
+//		gbest_fits_history.push_back(fit);
+//    }
+//
+//    void update_pbest_history(size_t p, std::vector<float> pbests, float fit) {
+//    	if (pbest_history.at(p).size() >= HISTORY_NUM) {
+//    		pbest_history.at(p).pop_front();
+//    		pbest_fits_history.at(p).pop_front();
+//    	}
+//    	pbest_history.at(p).push_back(pbests);
+//		pbest_fits_history.at(p).push_back(fit);
+//    }
+
     float update_velocity(float w, float X, float V, float V_min, float V_max,
     		float gbest, float pbests, float c1, float c2);
 
@@ -109,6 +138,23 @@ public:
 
 	std::vector<float> getgbest();
 
+//    std::vector<float> get_gbest_from_history() {
+//    	std::deque<float>::iterator minfit_it = std::min_element(std::begin(gbest_fits_history), std::end(gbest_fits_history));
+//    	minfithistoryidx = std::distance(std::begin(gbest_fits_history), minfit_it);
+//    			return gbest_history.at(minfithistoryidx);
+//    }
+//
+//    std::vector< std::vector<float> > get_pbest_from_history() {
+//    	size_t idx = 0;
+//    	std::vector< std::vector<float> > pbests;
+//    	for (size_t p = 0; p < numofparticles; ++p) {
+//    		std::deque<float>::iterator minfit_it = std::min_element(std::begin(pbest_fits_history.at(p)), std::end(pbest_fits_history.at(p)));
+//    		idx = std::distance(std::begin(pbest_fits_history.at(p)), minfit_it);
+//    		pbests.push_back(pbest_history.at(p).at(idx));
+//    	}
+//    	return pbests;
+//    }
+
 	float getgbestfit();
 
 	size_t getId() { return id; }
@@ -134,4 +180,9 @@ public:
 	void setLowSkip(size_t skip) { skip_low = skip; }
 
 	void setHighSkip(size_t skip) { skip_high = skip; }
+};
+
+class PSO_improve: public PSO {
+	float calc_response(float amp, float omega, float phase, float bump, float t);
+	float fitnessfunc_singleparticle(size_t p);
 };
