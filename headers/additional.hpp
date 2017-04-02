@@ -36,4 +36,6 @@ void findMinimas(std::vector<float> &v, size_t start, size_t end, std::vector<si
 
 void findMinima(std::vector<float> &v, size_t maxIDx, size_t &idxL, size_t &idxR);
 
+std::vector<float> gaussian_filter(std::vector<float> &input, size_t sigma);
+
 #endif /* ADDITIONAL_H_ */

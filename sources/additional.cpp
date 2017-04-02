@@ -163,14 +163,54 @@ void findMinima(std::vector<float> &v, size_t maxIDx, size_t &idxL, size_t &idxR
        std::vector<size_t> minsIDXRight2;
        std::vector<float> minsRight;
        findMinimas(v, maxIDx, v.size(), minsIDXRight);
-       if (minsIDXRight.size() <= 3)
-           idxR = minsIDXRight[minsIDXRight.size()-1];
+       //std::cout << minsIDXRight.size() << std::endl;
+       if (minsIDXRight.size() <= 3) {
+    	   if (minsIDXRight.size() == 0)
+    		   idxR = 0;
+    	   else
+    		   idxR = minsIDXRight[minsIDXRight.size()-1];
+       }
        else {
            for (size_t i = 0; i < minsIDXRight.size(); ++i) {
-               minsRight.push_back(v[minsIDXRight[i]]);
+               minsRight.push_back(v[maxIDx+minsIDXRight[i]]);
            }
            findMinimas(minsRight, 0, minsRight.size(), minsIDXRight2);
            idxR = minsIDXRight[minsIDXRight2[minsIDXRight2.size() - 1]];
        }
    }
+}
+
+std::vector<float>  gaussian_filter(std::vector<float> &input, size_t sigma) {
+	size_t n = 6*sigma;
+	std::vector<float> kernel(n);
+	double half_n = (n - 1) / 2.0;
+	double sum = 0.0;
+	for (size_t i = 0;  i < n;  ++i)
+	{
+	    double x = i - half_n;
+	    kernel[i] = 1.0/sqrtf(2*M_PI*sigma*sigma)*exp(-x*x/(2*sigma*sigma));// use formula with x
+	    //std::cout << kernel[i] << std::endl;
+	    sum += kernel[i];
+	}
+    std::cout << sum << std::endl;
+	//std::vector<float> kernel = {0.006, 0.061, 0.242, 0.383, 0.242, 0.061, 0.006};// find center position of kernel (half of kernel size)
+	std::vector<float> output = std::vector<float>(input.size());
+	size_t cols = input.size();
+	size_t kCols = kernel.size();
+	size_t kCenterX = kernel.size() / 2;
+	for(size_t j=0; j < cols; ++j)          // columns
+	{
+		for(size_t n=0; n < kCols; ++n) // kernel columns
+		{
+			size_t nn = kCols - 1 - n;  // column index of flipped kernel
+
+			// index of input signal, used for checking boundary
+			size_t jj = j + (n - kCenterX);
+
+			// ignore input samples which are out of bound
+			if(jj >= 0 && jj < cols )
+				output[j] += input[jj] * kernel[nn];
+		}
+	}
+	return output;
 }

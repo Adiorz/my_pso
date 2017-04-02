@@ -97,46 +97,150 @@ float PSO::fitnessfunc_singleparticle(size_t p) {
 	fft(response, A, P);
 
 	float freq_found_by_first;
-	//get freq found by the first thread
-//	if (id == 1) {
-//		std::unique_lock<std::mutex> lk(*m);
-//		cv->wait(lk, []{return freq_ready;});
-//		freq_found_by_first = found_freqs->at(0);
-//		freq_set = true;
-//		lk.unlock();
-//		cv->notify_one();
-//	}
+	// get freq found by the first thread
+	if (id == 1) {
+		std::unique_lock<std::mutex> lk(*m);
+		cv->wait(lk, []{return freq_ready;});
+		freq_found_by_first = found_freqs->at(0);
+		freq_set = true;
+		lk.unlock();
+		cv->notify_one();
+	}
 
 
 	size_t f;
-	size_t f_07;
-	size_t f_13;
+	size_t f_l;
+	size_t f_r;
 	if (id == 1) {
-		f = skip_high*fs/(numofsamples_2-1)/2;
-		f_07 = 0.7*skip_high*fs/(numofsamples_2-1)/2;
-		f_13 = 1.3*skip_high*fs/(numofsamples_2-1)/2;
-		findMinima(this->A, f, f_07, f_13);
+		f = freq_found_by_first*numofsamples/fs;
+		f_l = 0.7*f;
+		f_r = 1.3*f;
+		//findMinima(this->A, f, f_l, f_r);
+		std::vector<size_t> idxL;
+		std::vector<size_t> idxR;
+		findMinimas(A_gauss, 0, f, idxL);
+		findMinimas(A_gauss, 0, f, idxR);
+		transform(idxR.begin(), idxR.end(), idxR.begin(),
+		          bind2nd(std::plus<size_t>(), f));
+		f_l = idxL[idxL.size() - 1];
+		f_r = idxR[0];
 	}
 
-	for(size_t j = 0; j < numofsamples_2; ++j) {
-		float residue = 0.;
-		residue = this->A[j] - A[j];
-		fitness += residue*residue*residue*residue;
+	if (id >= 2) {
+		for (size_t j = 0; j < numofsamples_2; ++j) {
+				float residue = 0.;
+				//focus only in the specified range
+				if (j >= skip_low && j <= skip_high) {
+//					if (j==skip_low || j==skip_high)
+//						std::cout << "j: " << j << std::endl;
+					residue = this->A[j] - A[j];
+					fitness += residue*residue*residue*residue;
+				}
+			}
+	}
+	else
+		for(size_t j = 0; j < numofsamples_2; ++j) {
+			float residue = 0.;
+			residue = this->A[j] - A[j];
+			fitness += residue*residue*residue*residue;
 
-		//////////// additional penalty for the second thread at freq found by the first one
-		if (id == 1) {
-			if (should_skip_2(j)) {
-				float penalty = 0.;
-				if (j < f) {
-					penalty = (j-f_07)/(float)(f-f_07);
+			//////////// additional penalty for the second thread at freq found by the first one
+			if (id == 1) {
+				if (j >= f_l && j < f_r ) {
+					float penalty = 0.;
+					if (j < f) {
+						penalty = (j-f_l)/(float)(f-f_l);
+					}
+					else {
+						penalty = (f_r-j)/(float)(f_r-f);
+					}
+					fitness *= abs(A[j])*(1. + penalty);
 				}
-				else {
-					penalty = (f_13-j)/(float)(f_13-f);
-				}
-				fitness *= abs(A[j])*(1. + penalty);
 			}
 		}
+
+	return fitness;
+}
+
+float PSO::fitnessfunc_singleparticle(std::vector<float> &p) {
+	float fitness = 0.f;
+
+	float amp = p[0];
+	float omega = p[1];
+	float phase = p[2];
+	float bump = p[3];
+
+	std::vector<double> response(numofsamples, 0);
+	for(size_t j = 0; j < numofsamples; ++j) {
+		float t = time->at(j);
+		response[j] += calc_response(amp, omega, phase, bump, t);
 	}
+
+	std::vector<float> A;
+	std::vector<float> P;
+	fft(response, A, P);
+
+	float freq_found_by_first;
+	if (id == 1) {
+		std::unique_lock<std::mutex> lk(*m);
+		cv->wait(lk, []{return freq_ready;});
+		freq_found_by_first = found_freqs->at(0);
+		freq_set = true;
+		lk.unlock();
+		cv->notify_one();
+	}
+
+	size_t f;
+	size_t f_l;
+	size_t f_r;
+	if (id == 1) {
+		f = freq_found_by_first*numofsamples/fs;
+		f_l = 0.7*f;
+		f_r = 1.3*f;
+		//findMinima(this->A, f, f_l, f_r);
+		std::vector<size_t> idxL;
+		std::vector<size_t> idxR;
+		findMinimas(A_gauss, 0, f, idxL);
+		findMinimas(A_gauss, 0, f, idxR);
+		transform(idxR.begin(), idxR.end(), idxR.begin(),
+		          bind2nd(std::plus<size_t>(), f));
+		f_l = idxL[idxL.size() - 1];
+		f_r = idxR[0];
+		//std::cout << "Freq: " << freq_found_by_first << ", f: " << f << ", f_l: " << f_l << ", f_r: " << f_r << std::endl;
+
+	}
+	if (id >= 2) {
+		for (size_t j = 0; j < numofsamples_2; ++j) {
+				float residue = 0.;
+				//focus only in the specified range
+				if (j >= skip_low && j <= skip_high) {
+					if (j==skip_low || j==skip_high)
+						std::cout << "j: " << j << std::endl;
+					residue = this->A[j] - A[j];
+					fitness += residue*residue*residue*residue;
+				}
+			}
+	}
+	else
+		for(size_t j = 0; j < numofsamples_2; ++j) {
+			float residue = 0.;
+			residue = this->A[j] - A[j];
+			fitness += residue*residue*residue*residue;
+
+			//////////// additional penalty for the second thread at freq found by the first one
+			if (id == 1) {
+				if (j > f_l && j < f_r) {
+					float penalty = 0.;
+					if (j < f) {
+						penalty = (j-f_l)/(float)(f-f_l);
+					}
+					else {
+						penalty = (f_r-j)/(float)(f_r-f);
+					}
+					fitness *= abs(A[j])*(1. + penalty);
+				}
+			}
+		}
 
 	return fitness;
 }
@@ -155,6 +259,7 @@ void PSO::fitnessfunc() {
 void PSO::fitnessfunc_thread(size_t start, size_t end) {
 	for(size_t p = start; p < end; p++) {
 		fitnesses[p] = fitnessfunc_singleparticle(p);
+		//std::cout << p << ": " << fitnesses[p] << std::endl;
 	}
 }
 
@@ -185,6 +290,11 @@ void PSO::calcgbest(bool first) {
 	std::vector<float>::iterator minfit_it = std::min_element(std::begin(fitnesses), std::end(fitnesses));
 	minfit = *minfit_it;
 	minfitidx = std::distance(std::begin(fitnesses), minfit_it);
+	if (id == 1) {
+		//std::cout << "was: " << gbestfit << ", is: ";
+		gbestfit = fitnessfunc_singleparticle(gbest);
+		//std::cout << gbestfit << std::endl;
+	}
 	if(first || minfit < gbestfit)
 	{
 		gbestfit = minfit;
@@ -201,12 +311,6 @@ void PSO::update() {
 			V.at(i).at(j) = update_velocity(w, X.at(i).at(j), V.at(i).at(j), Vmin[j], Vmax[j], gbest.at(j), pbests.at(i).at(j), c1, c2);
 			// update position
 			X.at(i).at(j) = update_position(X.at(i).at(j), V.at(i).at(j), Xmin[j], Xmax[j]);
-			if (j == 1) {
-				if (id == 0)
-					X.at(i).at(j) = 123.707*2*M_PI;
-				if (id == 1)
-					X.at(i).at(j) = 948.702*2*M_PI;
-			}
 		}
 	}
 }
@@ -282,6 +386,7 @@ PSO::PSO(	size_t numofparticles,
 	distribution = std::uniform_real_distribution<float>(0.0, 1.0);
 
 	fft(*this->realdata, A, P);
+	A_gauss = gaussian_filter(A, 3);
 
 	init_max_velocities();
 	initpopulation();
@@ -324,17 +429,18 @@ void PSO::run() {
 		bests[t] = gbestfit;
 
 		//make sure first freq is ready before 2nd thread tries to use it
-//		if (id == 0) {
-//		    std::lock_guard<std::mutex> lk(*m);
-//			found_freqs->at(0) = gbest.at(0);
-//			freq_ready = true;
-//		    cv->notify_one();
-//		}
-//		//wait for the freq to be read
-//		if (id == 0) {
-//			std::unique_lock<std::mutex> lk(*m);
-//			cv->wait(lk, []{return freq_set;});
-//		}
+		if (id == 0) {
+		    std::lock_guard<std::mutex> lk(*m);
+			found_freqs->at(0) = gbest.at(1)/2/M_PI;
+			//std::cout << "found freq: " << found_freqs->at(0) << std::endl;// << "(" << found_freqs->at(0)/2/M_PI << ")" << std::endl;
+			freq_ready = true;
+		    cv->notify_one();
+		}
+		//wait for the freq to be read
+		if (id == 0) {
+			std::unique_lock<std::mutex> lk(*m);
+			cv->wait(lk, []{return freq_set;});
+		}
 
 		meanfits[t] = std::accumulate(fitnesses.begin(), fitnesses.end(), 0)/numofparticles;
 	}
@@ -344,15 +450,41 @@ std::vector<float> PSO::getgbest() { return gbest; }
 
 float PSO::getgbestfit() { return gbestfit; }
 
-void PSO::do_nothing() {
-	std::cout << "nothing" << std::endl;
-}
-
 bool PSO::freq_set = false;
 bool PSO::freq_ready = false;
 
-float PSO_improve::calc_response(float amp, float omega, float phase, float bump, float t) {
-	return amp*sin(omega*sqrt(1-(bump/omega)*(bump/omega))*t+phase)*exp(-bump*t);
+//float PSO_improve::calc_response(float amp, float omega, float phase, float bump, float t) {
+//	return amp*sin(omega*sqrt(1-(bump/omega)*(bump/omega))*t+phase)*exp(-bump*t);
+//}
+
+PSO_improve::PSO_improve(
+	size_t numofparticles,
+	size_t numofdims,
+	std::vector<float> &Xmin,
+	std::vector<float> &Xmax,
+	std::vector<double> *time,
+	std::vector<double> *realdata,
+	size_t numofiterations,
+	size_t id,
+	std::vector<float> *found_freqs,
+	std::mutex *m,
+	std::condition_variable *cv,
+	size_t skip_low,
+	size_t skip_high,
+	float c1, float c2): PSO(numofparticles, numofdims, Xmin, Xmax, time, realdata, numofiterations, 2, found_freqs, m, cv, skip_low, skip_high, c1, c2) {
+}
+
+void PSO_improve::calcgbest(bool first) {
+	std::vector<float>::iterator minfit_it = std::min_element(std::begin(fitnesses), std::end(fitnesses));
+	minfit = *minfit_it;
+	minfitidx = std::distance(std::begin(fitnesses), minfit_it);
+	if(first || minfit < gbestfit)
+	{
+		gbestfit = minfit;
+		// change for fast vector copying
+		for (size_t i = 0; i < numofdims; ++i)
+			gbest.at(i) = X.at(minfitidx).at(i);
+	}
 }
 
 float PSO_improve::fitnessfunc_singleparticle(size_t p) {
@@ -366,6 +498,7 @@ float PSO_improve::fitnessfunc_singleparticle(size_t p) {
 	}
 	float amp = X[p][0];
 	float omega = X[p][1];
+	//float omega = skip_high;
 	float phase = X[p][2];
 	float bump = X[p][3];
 
@@ -379,20 +512,11 @@ float PSO_improve::fitnessfunc_singleparticle(size_t p) {
 	std::vector<float> P;
 	fft(response, A, P);
 
-	size_t f;
-	size_t f_l;
-	size_t f_r;
-	if (id == 1) {
-		f = skip_high*fs/(numofsamples_2-1)/2;
-		f_l = 0.7*skip_high*fs/(numofsamples_2-1)/2;
-		f_r = 1.3*skip_high*fs/(numofsamples_2-1)/2;
-		findMinima(this->A, f, f_l, f_r);
-	}
-
 	for(size_t j = 0; j < numofsamples_2; ++j) {
 		float residue = 0.;
 		//focus only in the specified range
-		if (j >= f_l && j <= f_r) {
+		if (j >= skip_low && j <= skip_high) {
+			//std::cout << "j: " << j << std::endl;
 			residue = this->A[j] - A[j];
 			fitness += residue*residue*residue*residue;
 		}

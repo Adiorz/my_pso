@@ -60,6 +60,7 @@ protected:
     std::vector<double> *time;
     float fs;	// sampling frequency
     std::vector<float> A;
+    std::vector<float> A_gauss;
     std::vector<float> P;
 
     std::vector<float> *found_freqs;
@@ -75,6 +76,8 @@ protected:
     void addparticle();
 
     float fitnessfunc_singleparticle(size_t p);
+
+    float fitnessfunc_singleparticle(std::vector<float> &p);
 
     float calc_response(float amp, float omega, float phase, float bump, float t);
 
@@ -183,6 +186,24 @@ public:
 };
 
 class PSO_improve: public PSO {
-	float calc_response(float amp, float omega, float phase, float bump, float t);
+public:
+	PSO_improve(
+		size_t numofparticles,
+		size_t numofdims,
+		std::vector<float> &Xmin,
+		std::vector<float> &Xmax,
+		std::vector<double> *time,
+		std::vector<double> *realdata,
+		size_t numofiterations,
+		size_t id,
+		std::vector<float> *found_freqs,
+		std::mutex *m,
+		std::condition_variable *cv,
+		size_t skip_low = 0,
+		size_t skip_high = 0,
+		float c1 = 2, float c2 = 2);
+protected:
+	//float calc_response(float amp, float omega, float phase, float bump, float t);
 	float fitnessfunc_singleparticle(size_t p);
+	void calcgbest(bool first);
 };
