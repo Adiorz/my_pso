@@ -78,12 +78,32 @@ void get_frequencies(std::vector<float> &freq, size_t numofsamples, float fs) {
 void approximate_amp(
 		float amp, float omega, float phase, float bump,
 		std::vector<double> &time_real, size_t numofsamples, double *out) {
-	std::vector<double> appr(numofsamples);
+	std::vector<double> appr(numofsamples, 0.0);
 	for(size_t i = 0; i < numofsamples; ++i) {
-		appr[i] = amp*sin(omega*sqrt(1-(bump/omega)*(bump/omega))*time_real[i]+phase);
-		appr[i] *= exp(-bump*time_real[i]);
+		appr[i] += amp*sin(omega*sqrt(1-(bump/omega)*(bump/omega))*time_real[i]+phase) * exp(-bump*time_real[i]);
     }
 
+    std::vector<float> A_appr;
+    std::vector<float> P_appr;
+    fft(appr, A_appr, P_appr);
+    size_t numofsamples_2 = (size_t)(numofsamples/2)+1;
+	for(size_t i = 0; i < numofsamples_2; ++i)
+		out[i] = 20*log(A_appr[i]);
+}
+
+void approximate_amp(
+		std::vector<std::vector<float>> factors,
+		std::vector<double> &time_real, size_t numofsamples, double *out) {
+	std::vector<double> appr(numofsamples, 0.0);
+	for (size_t i = 0; i < factors.size(); ++i) {
+		float amp = factors[i][0];
+		float omega = factors[i][1];
+		float phase = factors[i][2];
+		float bump = factors[i][3];
+		for(size_t j = 0; j < numofsamples; ++j) {
+			appr[j] += amp*sin(omega*sqrt(1-(bump/omega)*(bump/omega))*time_real[j]+phase) * exp(-bump*time_real[j]);
+	    }
+	}
     std::vector<float> A_appr;
     std::vector<float> P_appr;
     fft(appr, A_appr, P_appr);
@@ -105,21 +125,6 @@ double min(double *values, size_t size) {
 	}
 	return min;
 }
-
-//void findMaximas(std::vector<double> &v, std::vector<size_t> &idx) {
-//	for (unsigned int i = 1; i < v.size(); ++i) {
-//		if (v[i] > v[i-1]) {
-//		   unsigned int j = i;
-//		   while (v[j] == v[j+1])
-//			   ++j;
-//		   ++j;
-//		   if (v[j] < v[i]) {
-//			   idx.push_back(i);
-//			   i = j;
-//		   }
-//		}
-//	}
-//}
 
 void findMinimas(std::vector<float> &v, size_t start, size_t end, std::vector<size_t> &idx) {
 	for (unsigned int i = start+1; i < end; ++i) {
@@ -163,7 +168,6 @@ void findMinima(std::vector<float> &v, size_t maxIDx, size_t &idxL, size_t &idxR
        std::vector<size_t> minsIDXRight2;
        std::vector<float> minsRight;
        findMinimas(v, maxIDx, v.size(), minsIDXRight);
-       //std::cout << minsIDXRight.size() << std::endl;
        if (minsIDXRight.size() <= 3) {
     	   if (minsIDXRight.size() == 0)
     		   idxR = 0;
@@ -188,12 +192,9 @@ std::vector<float>  gaussian_filter(std::vector<float> &input, size_t sigma) {
 	for (size_t i = 0;  i < n;  ++i)
 	{
 	    double x = i - half_n;
-	    kernel[i] = 1.0/sqrtf(2*M_PI*sigma*sigma)*exp(-x*x/(2*sigma*sigma));// use formula with x
-	    //std::cout << kernel[i] << std::endl;
+	    kernel[i] = 1.0/sqrtf(2*M_PI*sigma*sigma)*exp(-x*x/(2*sigma*sigma));
 	    sum += kernel[i];
 	}
-    std::cout << sum << std::endl;
-	//std::vector<float> kernel = {0.006, 0.061, 0.242, 0.383, 0.242, 0.061, 0.006};// find center position of kernel (half of kernel size)
 	std::vector<float> output = std::vector<float>(input.size());
 	size_t cols = input.size();
 	size_t kCols = kernel.size();
