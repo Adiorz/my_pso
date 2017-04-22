@@ -18,10 +18,12 @@ std::vector<double> first_derivative(std::vector<double> &data, double step);
 class PSO {
 protected:
 	size_t id;
+	std::pair<bool, size_t> helper;
 	bool initialized = false;
 
-	static bool freq_set;
-	static bool freq_ready;
+	static std::vector<bool> freq_set;
+	bool get_freq_set() { return freq_set[id]; }
+	static std::vector<bool> freq_ready;
 
 	size_t numofparticles;
 	size_t numofdims;
@@ -38,7 +40,7 @@ protected:
 	std::vector<float> Vmin;
     std::vector< std::vector<float> > pbests;
     std::vector<float> pbestfits;
-    std::vector<float> fitnesses;
+    std::vector<double> fitnesses;
     float gbestfit;
 
 	std::vector<float> gbest;
@@ -59,11 +61,12 @@ protected:
     std::vector<float> A_gauss;
     std::vector<float> P;
 
-    std::vector<float> *found_freqs;
-	std::mutex *m;
-	std::condition_variable *cv;
+    float max_A;
 
-	PSO *helper_pso;
+    std::vector<float> *found_freqs;
+    std::vector<std::vector<size_t>> to_skip;
+    std::vector<std::mutex> *m;
+    std::vector<std::condition_variable> *cv;
 
     float init_param(size_t j);
 
@@ -104,17 +107,18 @@ public:
 
 	PSO(	size_t numofparticles,
 			size_t numofdims,
-			std::vector<float> &Xmin,
-			std::vector<float> &Xmax,
+			std::vector<float> Xmin,
+			std::vector<float> Xmax,
 			std::vector<double> *time,
 			std::vector<double> *realdata,
 			size_t numofiterations,
 			size_t id,
 			std::vector<float> *found_freqs,
-			std::mutex *m,
-			std::condition_variable *cv,
+			std::vector<std::mutex> *m,
+			std::vector<std::condition_variable> *cv,
 			size_t skip_low = 0,
 			size_t skip_high = 0,
+			std::pair<bool, size_t> helper = std::pair<bool, size_t> (false, -1),
 			float c1 = 2, float c2 = 2);
 
 	void run();
@@ -132,6 +136,12 @@ public:
 		else
 			return false;
 	}
+//	bool should_skip(size_t f){
+//		for (size_t i = 0; i < to_skip.size(); ++i)
+//			if (f >= to_skip[i].first && f <= to_skip[i].second)
+//				return true;
+//		return false;
+//	}
 
 	bool should_skip_2(size_t freq) {
 		float freq_by_idx = freq*fs/(numofsamples_2-1)/2;

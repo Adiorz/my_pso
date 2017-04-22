@@ -75,6 +75,21 @@ void get_frequencies(std::vector<float> &freq, size_t numofsamples, float fs) {
 			freq[i] = i*fs/(numofsamples_2-1)/2;
 }
 
+void calc_response(std::vector<std::vector<float>> results, size_t numofsamples, float ts, std::vector<float> &response) {
+	response = std::vector<float> (numofsamples, 0.f);
+	for (size_t i = 0; i < results.size(); ++i) {
+		float amp = results[i][0];
+		float omega = results[i][1];
+		float phase = results[i][2];
+		float bump = results[i][3];
+		for (size_t j = 0; j < numofsamples; ++j) {
+			double t = j*ts;
+			response[j] += amp*sin(omega*sqrt(1-(bump/omega)*(bump/omega))*t+phase)*
+					exp(-bump*t);
+		}
+	}
+}
+
 void approximate_amp(
 		float amp, float omega, float phase, float bump,
 		std::vector<double> &time_real, size_t numofsamples, double *out) {
@@ -127,6 +142,7 @@ double min(double *values, size_t size) {
 }
 
 void findMinimas(std::vector<float> &v, size_t start, size_t end, std::vector<size_t> &idx) {
+	idx = std::vector<size_t> ();
 	for (unsigned int i = start+1; i < end; ++i) {
 	   if (v[i] < v[i-1]) {
 		   unsigned int j = i;
@@ -214,4 +230,11 @@ std::vector<float>  gaussian_filter(std::vector<float> &input, size_t sigma) {
 		}
 	}
 	return output;
+}
+
+bool should_skip(size_t f, std::vector<std::pair<size_t, size_t>> &to_skip){
+	for (size_t i = 0; i < to_skip.size(); ++i)
+		if (f >= to_skip[i].first && f <= to_skip[i].second)
+			return true;
+	return false;
 }

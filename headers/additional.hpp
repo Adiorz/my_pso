@@ -13,6 +13,7 @@ static bool abs_compare(int a, int b);
 void init_minmax(std::vector<float> &xmin, std::vector<float> &xmax, size_t numofdims, std::vector<double> &data);
 void get_frequencies(std::vector<float> &freq, size_t numofsamples, float fs);
 
+void calc_response(std::vector<std::vector<float>> results, size_t numofsamples, float ts, std::vector<float> &response);
 void approximate_amp(std::vector<std::vector<float>> factors, std::vector<double> &time_real, size_t numofsamples, double *out);
 
 class DataStream {
@@ -35,5 +36,7 @@ void findMinimas(std::vector<float> &v, size_t start, size_t end, std::vector<si
 void findMinima(std::vector<float> &v, size_t maxIDx, size_t &idxL, size_t &idxR);
 
 std::vector<float> gaussian_filter(std::vector<float> &input, size_t sigma);
+
+bool should_skip(size_t f, std::vector<std::pair<size_t, size_t>> &to_skip);
 
 #endif /* ADDITIONAL_H_ */
