@@ -8,13 +8,15 @@
 
 void donothing(std::vector<float> *realdata, std::vector<float> &fitnesses, std::vector< std::vector<float> > &X);
 
-static bool abs_compare(int a, int b);
+//static bool abs_compare(int a, int b);
 
-void init_minmax(std::vector<float> &xmin, std::vector<float> &xmax, size_t numofdims, std::vector<double> &data);
+void init_minmax(std::vector<float> &xmin, std::vector<float> &xmax, size_t numofdims, std::vector<double> &data, size_t max_freq = -1);
 void get_frequencies(std::vector<float> &freq, size_t numofsamples, float fs);
 
 void calc_response(std::vector<std::vector<float>> results, size_t numofsamples, float ts, std::vector<float> &response);
 void approximate_amp(std::vector<std::vector<float>> factors, std::vector<double> &time_real, size_t numofsamples, double *out);
+
+float fitnessfunc(std::vector<float> &p, size_t numofsamples, float ts, std::vector<float> A_target, float max_A);
 
 class DataStream {
 public:

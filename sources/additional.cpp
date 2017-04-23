@@ -49,7 +49,7 @@ static bool abs_compare(int a, int b)
     return (std::abs(a) < std::abs(b));
 }
 
-void init_minmax(std::vector<float> &xmin, std::vector<float> &xmax, size_t numofdims, std::vector<double> &data) {
+void init_minmax(std::vector<float> &xmin, std::vector<float> &xmax, size_t numofdims, std::vector<double> &data, size_t max_freq) {
     xmin = std::vector<float>(numofdims);
     xmax = std::vector<float>(numofdims);
     std::vector<double>::iterator max_abs_it;
@@ -59,7 +59,10 @@ void init_minmax(std::vector<float> &xmin, std::vector<float> &xmax, size_t numo
     xmin[0] = 0; //amp
     xmax[0] = 2*max_abs;
     xmin[1] = 2*20*M_PI; //omega
-    xmax[1] = 2*1500*M_PI;//359.99f;
+    if (max_freq == -1)
+    	xmax[1] = 2*3000*M_PI;//359.99f;
+    else
+    	xmax[1] = 2*M_PI*max_freq;
     xmin[2] = 0; //phase
     xmax[2] = 0.2*M_PI;//1000;
     xmin[3] = 0.0001*xmin[1]; //bumping
@@ -88,6 +91,76 @@ void calc_response(std::vector<std::vector<float>> results, size_t numofsamples,
 					exp(-bump*t);
 		}
 	}
+}
+
+void calc_response(float amp, float omega, float phase, float bump, size_t numofsamples, float ts, std::vector<double> &response) {
+	response = std::vector<double> (numofsamples, 0.f);
+	for (size_t j = 0; j < numofsamples; ++j) {
+		double t = j*ts;
+		response[j] += amp*sin(omega*sqrt(1-(bump/omega)*(bump/omega))*t+phase)*
+				exp(-bump*t);
+	}
+}
+
+float fitnessfunc(std::vector<float> &p, size_t numofsamples, float ts, std::vector<float> A_target, float max_A) {
+//	std::cout << "entered" << std::endl;
+//	while (p[3] > p[1]) {
+//		float high = Xmax[3];
+//		float low = Xmin[3];
+//		float rand = distribution(generator);
+//		float init_position = rand * (high-low) + low;
+//		p[3] = init_position;
+//	}
+
+	float amp = p[0];
+	float omega = p[1];
+	float phase = p[2];
+	float bump = p[3];
+
+	std::vector<double> response(numofsamples, 0);
+	calc_response(amp, omega, phase, bump, numofsamples, ts, response);
+
+	std::vector<float> A;
+	std::vector<float> P;
+	fft(response, A, P);
+
+	size_t numofsamples_2 = size_t(numofsamples/2)+1;
+
+	float fitness = 0.f;
+	std::vector<std::vector<size_t>> to_skip;
+	to_skip.push_back(std::vector<size_t>{52, 216, 336});
+	to_skip.push_back(std::vector<size_t>{367, 413, 764});
+	for(size_t j = 0; j < numofsamples_2; ++j) {
+		float residue = A_target[j] - A[j];
+		float temp_fit = residue*residue*residue*residue/max_A;
+		size_t l_skip;
+		size_t m_skip;
+		size_t h_skip;
+		bool b_skip = false;
+//		for (size_t i = 0; i < to_skip.size(); ++i) {
+//			if (j >= to_skip[i][0] && j <= to_skip[i][2]) {
+//				b_skip = true;
+//				l_skip = to_skip[i][0];
+//				m_skip = to_skip[i][1];
+//				h_skip = to_skip[i][2];
+//				break;
+//			}
+//		}
+//		if (b_skip) {
+//			float penalty = 0.;
+//			if (j < m_skip) {
+//				penalty = (j-l_skip)/(float)(m_skip-l_skip);
+//			}
+//			else {
+//				penalty = (h_skip-j)/(float)(h_skip-m_skip);
+//			}
+//			temp_fit *= abs(A[j])*(1.f + penalty);
+//		}
+//		else
+//			std::cout << "no add penalty: " << j << std::endl;
+		fitness += temp_fit;
+	}
+	return fitness;
 }
 
 void approximate_amp(

@@ -36,6 +36,10 @@ const float samplingrate = 50; // samples per second
 
 using namespace std;
 
+#define SWARMS_NUM 3
+
+std::vector<bool> PSO::freq_set = std::vector<bool> (SWARMS_NUM-1, false);
+std::vector<bool> PSO::freq_ready = std::vector<bool> (SWARMS_NUM-1, false);
 
 int main(int argc, const char ** argv)
 {
@@ -61,7 +65,7 @@ try {
 	std::vector<double> time_real		(time.get());
 	float ts = time_real[1] - time_real[0];
 	float fs = 1/ts;
-	std::vector<double> data_derivative(first_derivative(channel0_real, ts));
+//	std::vector<double> data_derivative(first_derivative(channel0_real, ts));
 	std::vector<float> freq;
 	get_frequencies(freq, numofsamples, fs);
 	std::vector<float> A;
@@ -70,10 +74,10 @@ try {
 //	std::vector<double> *used_data = &data_derivative;
 	fft(*used_data, A, P);
 
-	if (deriv == "deriv") {
-		std::cout << "use signal derivative as input" << std::endl;
-		used_data = &data_derivative;
-	}
+//	if (deriv == "deriv") {
+//		std::cout << "use signal derivative as input" << std::endl;
+//		used_data = &data_derivative;
+//	}
 	size_t max_A_idx = std::distance(A.begin(), std::max_element(A.begin(), A.end()));
 	std::cout << "Original dominating amp: " << A[max_A_idx] << std::endl;
 	std::cout << "Original dominating freq: " << freq[max_A_idx] << std::endl;
@@ -81,12 +85,12 @@ try {
     std::cout << "Number of iterations: " << numofiterations << std::endl;
 
 	size_t t_num = std::thread::hardware_concurrency();
-	t_num = 3;
+	t_num = SWARMS_NUM;
 	//std::cout << "Number of detected threads: " << t_num << std::endl;
 
 	std::vector< std::vector<float> > init(numofparticles);
 	std::vector<float> xmin, xmax;
-	init_minmax(xmin, xmax, numofdims, channel0_real);
+	init_minmax(xmin, xmax, numofdims, channel0_real, freq[freq.size()-1]);
 
     std::vector<std::thread> threads(t_num);
     std::vector<std::thread> helper_threads(t_num);
@@ -108,7 +112,7 @@ try {
     	threads[p].join();
     }
 
-    used_data = &channel0_real;
+//    used_data = &channel0_real;
 	fft(*used_data, A, P);
 	std::vector<float> A_gauss(gaussian_filter(A, 6));
 	std::vector<PSO*> *helper_psos = new std::vector<PSO*>();
@@ -129,25 +133,17 @@ try {
 		PSO *helper_pso = new PSO(1.5*numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, t_num + p, found_freqs, &mutexes, &cvs, f_l, f_r, std::pair<bool, size_t> (true, p));
 		helper_psos->push_back(helper_pso);
 		helper_threads[p] = std::thread(&PSO::run, std::ref(*helper_pso));
-//		std::cout << "p: " << p << "here" << std::endl;
 	}
-//    for (size_t p = 0; p < helper_psos->size(); ++p) {
-//		std::cout << "p: " << p << "here" << std::endl;
-//		helper_threads[p] = std::thread(&PSO::run, std::ref(*helper_psos->at(p)));
-//		std::cout << "p: " << p << "here" << std::endl;
-//    }
     for (size_t p = 0; p < helper_psos->size(); ++p) {
 		helper_threads[p].join();
     }
 
-    std::cout << "first:" << std::endl;
+    std::cout << "main swarms:" << std::endl;
     for (size_t p = 0; p < t_num; ++p) {
-    	for (size_t d = 0; d < numofdims; ++d)
-    		std::cout << psos->at(p)->getgbest().at(d) << std::endl;
-    }
-    for (size_t p = 0; p < t_num; ++p) {
+        std::cout << "swarm: " << p << std::endl;
     	std::cout << "amp: " << psos->at(p)->getgbest().at(0) << std::endl;
     	std::cout << "freq: " << psos->at(p)->getgbest().at(1)/2/M_PI << std::endl;
+    	std::cout << "phase: " << psos->at(p)->getgbest().at(2) << std::endl;
     	std::cout << "dumping: " << psos->at(p)->getgbest().at(3)/psos->at(p)->getgbest().at(1) << std::endl;
         std::cout << "fitness: " << psos->at(p)->getgbestfit() <<endl;
     }
@@ -191,7 +187,7 @@ try {
 #ifdef PLOT
     size_t numofsamples_2 = (size_t)(numofsamples/2)+1;
     std::vector<double *> A_approx(t_num+1);
-    double mins[t_num];
+//    double mins[t_num];
 
     for (size_t i = 0; i < t_num; ++i) {
 		A_approx[i] = new double[numofsamples_2];
@@ -200,25 +196,26 @@ try {
 				time_real,
 				numofsamples,
 				A_approx[i]);
-		mins[i] = min(A_approx[i], numofsamples_2);
+//		mins[i] = min(A_approx[i], numofsamples_2);
     }
 
 	A_approx[t_num] = new double[numofsamples_2];
 	std::vector<std::vector<float>> factors;
 	for (size_t i = 0; i < t_num; ++i)
 		factors.push_back(helper_psos->at(i)->getgbest());
+//		factors.push_back(psos->at(i)->getgbest());
     approximate_amp(
     		factors,
 			time_real,
 			numofsamples,
 			A_approx[t_num]);
 
-    double min_val = min(mins, t_num);
-    double g[numofsamples_2];
+//    double min_val = min(mins, t_num);
+//    double g[numofsamples_2];
     double y[numofsamples_2];
     double x[numofsamples_2];
 	for(size_t i = 0; i < numofsamples_2; ++i) {
-		g[i] = 20*log(A_gauss[i]);
+//		g[i] = 20*log(A_gauss[i]);
 		x[i] = freq[i];
 		y[i] = 20*log(A[i]);
 	}

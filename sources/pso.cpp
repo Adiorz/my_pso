@@ -483,14 +483,25 @@ void PSO::run() {
 
 		//fitnessfunc_multi();
 		fitnessfunc();
-		if (id == 2 && t < 10) {
-			std::ofstream myfile;
-			    myfile.open (t + ".log", std::ios::out | std::ios::app);
-			    for (size_t i = 0; i < numofparticles; ++i) {
-			    	myfile  << X.at(i).at(1) << ";" << fitnesses.at(i) << std::endl;;
-			    }
-			myfile.close();
-		}
+//		if (id == 2 && t == numofiterations - 10) {
+//			std::cout << "entered" << std::endl;
+//			std::vector<float> temp_particle(this->gbest);
+//			std::vector<float> freqs;
+//			get_frequencies(freqs, numofsamples, fs);
+//			std::cout << "got frequencies" << std::endl;
+//
+//			std::ofstream myfile;
+//			for (size_t f = 0; f < freqs.size(); ++f) {
+//				float freq = freqs[f];
+//				temp_particle[1] = freq;
+//				double penalty = fitnessfunc_singleparticle(temp_particle);
+//
+//				std::cout << f << "/" << freqs.size() << ", " << freq << ": " << penalty << std::endl;
+//				myfile.open ("fitnesses.log", std::ios::out | std::ios::app);
+//				myfile  << freq << ";" << penalty << std::endl;
+//				myfile.close();
+//			}
+//		}
 		calcgbest();
 		std::vector<double>::iterator maxfit_it = std::max_element(std::begin(fitnesses), std::end(fitnesses));
 		worsts[t] = *maxfit_it;
@@ -518,6 +529,3 @@ void PSO::run() {
 std::vector<float> PSO::getgbest() { return gbest; }
 
 float PSO::getgbestfit() { return gbestfit; }
-
-std::vector<bool> PSO::freq_set = std::vector<bool> (3, false);
-std::vector<bool> PSO::freq_ready = std::vector<bool> (3, false);
