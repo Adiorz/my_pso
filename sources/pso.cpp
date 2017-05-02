@@ -13,25 +13,11 @@
 
 #include <mutex>
 
-#define rand_01 ((float)rand() / (float)RAND_MAX)
+#define rand_01 ((double)rand() / (double)RAND_MAX)
 
 std::mutex m;
 
-std::vector<double> first_derivative(std::vector<double> &data, double step) {
-	std::vector<double> derivative(data.size());
-	for (size_t i = 0; i < data.size(); ++i) {
-		if ((i == 0) || (i == data.size() - 1))
-			derivative[i] = data[i];
-		else {
-			double tmp = data[i-1] + data[i+1];
-			tmp /= (2*step);
-			derivative[i] = tmp;
-		}
-	}
-	return derivative;
-}
-
-float PSO::init_param(size_t j) {
+double PSO::init_param(size_t j) {
     	return PSO::distribution(generator)*(Xmax.at(j)-Xmin.at(j)) + Xmin.at(j);
     }
 
@@ -45,9 +31,9 @@ void PSO::init_max_velocities() {
 
 void PSO::initpopulation() {
 	for(size_t i = 0; i < numofparticles; i++) {
-		X.at(i) = std::vector<float>(numofdims);
-		V.at(i) = std::vector<float>(numofdims);
-		pbests.at(i) = std::vector<float>(numofdims);
+		X.at(i) = std::vector<double>(numofdims);
+		V.at(i) = std::vector<double>(numofdims);
+		pbests.at(i) = std::vector<double>(numofdims);
 		for(size_t j = 0; j < numofdims; j++) {
 			X.at(i).at(j) = init_param(j);
 			// damping factor cannot be bigger than the frequency (dimensionless damping factor cannot be > 1)
@@ -61,8 +47,8 @@ void PSO::initpopulation() {
 void PSO::addparticle() {
 	numofparticles++;
 	numofsamples_2 = size_t(numofsamples/2)+1;
-	std::vector<float> new_x(numofdims);
-	std::vector<float> new_v(numofdims, 0);
+	std::vector<double> new_x(numofdims);
+	std::vector<double> new_v(numofdims, 0);
 	for (size_t i = 0; i < numofdims; ++i) {
 		new_x[i] = init_param(i);
 	}
@@ -74,172 +60,54 @@ void PSO::addparticle() {
 	pbestfits.push_back(fitness);
 }
 
-//float PSO::fitnessfunc_singleparticle(size_t p) {
-//	float fitness = 0.f;
-//	while (X[p][3] > X[p][1]) {
-//		float high = Xmax[3];
-//		float low = Xmin[3];
-//		float rand = distribution(generator);
-//		float init_position = rand * (high-low) + low;
-//		X[p][3] = init_position;
-//	}
-//	float amp = X[p][0];
-//	float omega = X[p][1];
-//	float phase = X[p][2];
-//	float bump = X[p][3];
-//
-//	std::vector<double> response(numofsamples, 0);
-//	for(size_t j = 0; j < numofsamples; ++j) {
-//		float t = time->at(j);
-//		response[j] += calc_response(amp, omega, phase, bump, t);
-//	}
-//
-//	std::vector<float> A;
-//	std::vector<float> P;
-//	fft(response, A, P);
-//
-//	float freq_found;
-//	// get freq found by the first thread
-//	if (id > 0 && !helper.first) {
-//		std::unique_lock<std::mutex> lk(m->at(id-1));
-//		cv->at(id-1).wait(lk, [&]{
-//				return freq_ready[id-1];});
-//		freq_found = found_freqs->at(id-1);
-//		freq_set[id-1] = true;
-//		lk.unlock();
-//		cv->at(id-1).notify_one();
-//	}
-//
-//	size_t f;
-//	size_t f_l;
-//	size_t f_r;
-//	if (id > 0 && !helper.first) {
-//		f = freq_found*numofsamples/fs;
-//		std::vector<size_t> idxL;
-//		std::vector<size_t> idxR;
-//		findMinimas(A_gauss, 0, f, idxL);
-//		findMinimas(A_gauss, f, numofsamples-1, idxR);
-//		f_l = idxL[idxL.size() - 1];
-//		f_r = idxR[0];
-//	}
-//
-//	if (helper.first) {
-//		for (size_t j = 0; j < numofsamples_2; ++j) {
-//			float residue = 0.;
-//			//focus only on the specified range
-//			if (j >= skip_low && j <= skip_high) {
-//				residue = this->A[j] - A[j];
-//				fitness += residue*residue*residue*residue;
-//			}
-//		}
-//	}
-//	else
-//		for(size_t j = 0; j < numofsamples_2; ++j) {
-//			float residue = 0.;
-//			residue = this->A[j] - A[j];
-//			fitness += residue*residue*residue*residue;
-//
-//			//////////// additional penalty for the second thread at freq found by the first one
-//			if (id > 0 && !helper.first) {
-//				if (j >= f_l && j < f_r ) {
-//					if (id == 2)
-//						std::cout << j << std::endl;
-//					float penalty = 0.;
-//					if (j < f) {
-//						penalty = (j-f_l)/(float)(f-f_l);
-//					}
-//					else {
-//						penalty = (f_r-j)/(float)(f_r-f);
-//					}
-//					fitness *= abs(A[j])*(1. + penalty);
-//				}
-//			}
-////			if (id > 0 && !helper.first) {
-////				for (size_t i = 0; i < to_skip.size(); ++i) {
-////					if (j >= to_skip[i][0] && j <= to_skip[i][2]) {
-////						float penalty = 0.;
-////						if (j < to_skip[i][1]) {
-////							penalty = (j-to_skip[i][0])/(float)(to_skip[i][1]-to_skip[i][0]);
-////						}
-////						else {
-////							penalty = (to_skip[i][2]-j)/(float)(to_skip[i][2]-to_skip[i][1]);
-////						}
-////						fitness *= abs(A[j])*(1. + penalty);
-////					}
-////				}
-////			}
-//		}
-//
-//	return fitness;
-//}
-
-float PSO::fitnessfunc_singleparticle(std::vector<float> &p) {
-//	std::cout << "reference" << std::endl;
+double PSO::fitnessfunc_singleparticle(std::vector<double> &p) {
 	while (p[3] > p[1]) {
-		float high = Xmax[3];
-		float low = Xmin[3];
-		float rand = distribution(generator);
-		float init_position = rand * (high-low) + low;
+		double high = Xmax[3];
+		double low = Xmin[3];
+		double rand = distribution(generator);
+		double init_position = rand * (high-low) + low;
 		p[3] = init_position;
 	}
 
-	float amp = p[0];
-	float omega = p[1];
-	float phase = p[2];
-	float bump = p[3];
+	double amp = p[0];
+	double omega = p[1];
+	double phase = p[2];
+	double bamp = p[3];
 
 	std::vector<double> response(numofsamples, 0);
-	for(size_t j = 0; j < numofsamples; ++j) {
-		float t = time->at(j);
-		response[j] += calc_response(amp, omega, phase, bump, t);
-//		if (id == 2 && initialized)
-//			std::cout << response[j] << std::endl;
+	if (helper.first) {
+		std::vector<std::vector<double>> parameters;
+		for (size_t i = 0; i < id; ++i)
+			parameters.push_back(founds->at(i));
+		parameters.push_back(p);
+		calc_response(parameters, numofsamples, 1/fs, response);
 	}
+	else
+		for(size_t j = 0; j < numofsamples; ++j) {
+			double t = time->at(j);
+			response[j] += calc_response(amp, omega, phase, bamp, t);
+		}
 
-	std::vector<float> A;
-	std::vector<float> P;
+	std::vector<double> A;
+	std::vector<double> P;
 	fft(response, A, P);
 
-//	float freq_found;
-//	// get freq found by the first thread
-//	if (id > 0 && !helper.first) {
-//		std::unique_lock<std::mutex> lk(m->at(id-1));
-//		cv->at(id-1).wait(lk, [&]{
-//				return freq_ready[id-1];});
-//		freq_found = found_freqs->at(id-1);
-//		freq_set[id-1] = true;
-//		lk.unlock();
-//		cv->at(id-1).notify_one();
-//	}
-//
-//	size_t f;
-//	size_t f_l;
-//	size_t f_r;
-//	if (id > 0 && !helper.first) {
-//		f = freq_found*numofsamples/fs;
-//		std::vector<size_t> idxL;
-//		std::vector<size_t> idxR;
-//		findMinimas(A_gauss, 0, f, idxL);
-//		findMinimas(A_gauss, f, numofsamples-1, idxR);
-//		f_l = idxL[idxL.size() - 1];
-//		f_r = idxR[0];
-//	}
-	float fitness = 0.f;
+	double fitness = 0.f;
 	if (helper.first) {
 		for (size_t j = 0; j < numofsamples_2; ++j) {
 			//focus only on the specified range
 			if (j >= skip_low && j <= skip_high) {
-				float residue = this->A[j] - A[j];
+				double residue = this->A[j] - A[j];
 				//fitness += residue*residue*residue*residue;
-				float temp_fit = residue*residue*residue*residue/max_A;
+				double temp_fit = residue*residue*residue*residue/max_A;
 				fitness += temp_fit;
 			}
 		}
 	}
 	else
 		for(size_t j = 0; j < numofsamples_2; ++j) {
-			float residue = this->A[j] - A[j];
-			float temp_fit = residue*residue*residue*residue/max_A;
+			double residue = this->A[j] - A[j];
+			double temp_fit = residue*residue*residue*residue/max_A;
 			if (id > 0 && !helper.first) {
 				size_t l_skip;
 				size_t m_skip;
@@ -255,12 +123,12 @@ float PSO::fitnessfunc_singleparticle(std::vector<float> &p) {
 					}
 				}
 					if (b_skip) {
-						float penalty = 0.;
+						double penalty = 0.;
 						if (j < m_skip) {
-							penalty = (j-l_skip)/(float)(m_skip-l_skip);
+							penalty = (j-l_skip)/(double)(m_skip-l_skip);
 						}
 						else {
-							penalty = (h_skip-j)/(float)(h_skip-m_skip);
+							penalty = (h_skip-j)/(double)(h_skip-m_skip);
 						}
 						temp_fit *= abs(A[j])*(1.f + penalty);
 				}
@@ -270,10 +138,26 @@ float PSO::fitnessfunc_singleparticle(std::vector<float> &p) {
 	return fitness;
 }
 
-float PSO::calc_response(float amp, float omega, float phase, float bump, float t) {
-	float ret = amp*sin(omega*sqrt(1-(bump/omega)*(bump/omega))*t+phase)*
-			exp(-bump*t);
+double PSO::calc_response(double amp, double omega, double phase, double bamp, double t) {
+//	double ret = amp*sin(omega*sqrt(1-(bamp/omega)*(bamp/omega))*t+phase);
+	double ret = amp*sin(omega*sqrt(1-(bamp/omega)*(bamp/omega))*t);
+	ret *= exp(-bamp*t);
 	return ret;
+}
+
+void PSO::calc_response(std::vector<std::vector<double>> results, size_t numofsamples, double ts, std::vector<double> &response) {
+	response = std::vector<double> (numofsamples, 0.);
+	for (size_t i = 0; i < results.size(); ++i) {
+		double amp = results[i][0];
+		double omega = results[i][1];
+		double phase = results[i][2];
+		double bamp = results[i][3];
+		for (size_t j = 0; j < numofsamples; ++j) {
+			double t = j*ts;
+			response[j] += amp*sin(omega*sqrt(1-(bamp/omega)*(bamp/omega))*t)*
+					exp(-bamp*t);
+		}
+	}
 }
 
 void PSO::fitnessfunc() {
@@ -343,31 +227,32 @@ void PSO::update() {
 	}
 }
 
-float PSO::update_velocity(float w, float X, float V, float V_min, float V_max,
-		float gbest, float pbests, float c1, float c2) {
+double PSO::update_velocity(double w, double X, double V, double V_min, double V_max,
+		double gbest, double pbests, double c1, double c2) {
 	return std::min(std::max((w * V + rand_01 * c1 * (pbests - X)
 			+ rand_01 * c2 * (gbest - X)), V_min), V_max);
 }
 
-float PSO::update_position(float X, float V, float X_min, float X_max) {
+double PSO::update_position(double X, double V, double X_min, double X_max) {
 	return std::min(std::max((X + V), X_min), X_max);
 }
 
 PSO::PSO(	size_t numofparticles,
 			size_t numofdims,
-			std::vector<float> Xmin,
-			std::vector<float> Xmax,
+			std::vector<double> Xmin,
+			std::vector<double> Xmax,
 			std::vector<double> *time,
 			std::vector<double> *realdata,
 			size_t numofiterations,
 			size_t id,
-			std::vector<float> *found_freqs,
+//			std::vector<double> *found_freqs,
+			std::vector<std::vector<double>> *founds,
 			std::vector<std::mutex> *m,
 			std::vector<std::condition_variable> *cv,
 			size_t skip_low,
 			size_t skip_high,
 			std::pair<bool, size_t> helper,
-			float c1, float c2) {
+			double c1, double c2) {
 
 	this->id = id;
 	this->helper = helper;
@@ -381,8 +266,8 @@ PSO::PSO(	size_t numofparticles,
 	this->c1 = c1;
 	this->c2 = c2;
 
-	V = std::vector< std::vector<float> >(numofparticles);
-	X = std::vector< std::vector<float> >(numofparticles);
+	V = std::vector< std::vector<double> >(numofparticles);
+	X = std::vector< std::vector<double> >(numofparticles);
 	this->Xmax = Xmax;
 	this->Xmin = Xmin;
 	if (helper.first){
@@ -390,27 +275,30 @@ PSO::PSO(	size_t numofparticles,
 		std::cout << "h: " << skip_high << std::endl;
 		Xmin[1] = skip_low*2*M_PI*fs/numofsamples;
 		Xmax[1] = skip_high*2*M_PI*fs/numofsamples;
+		std::cout << "Xmin[1]: " << Xmin[1] << std::endl;
+		std::cout << "Xmax[1]: " << Xmax[1] << std::endl;
 	}
-	Vmax = std::vector<float>(numofdims);
-	Vmin = std::vector<float>(numofdims);
-	pbests = std::vector< std::vector<float> >(numofparticles);
-	pbestfits = std::vector<float>(numofparticles);
+	Vmax = std::vector<double>(numofdims);
+	Vmin = std::vector<double>(numofdims);
+	pbests = std::vector< std::vector<double> >(numofparticles);
+	pbestfits = std::vector<double>(numofparticles);
 	fitnesses = std::vector<double>(numofparticles);
 
-	gbest = std::vector<float>(numofdims);
-	worsts = std::vector<float>(numofiterations);
-	meanfits = std::vector<float>(numofiterations);
-	bests = std::vector<float>(numofiterations);
+	gbest = std::vector<double>(numofdims);
+	worsts = std::vector<double>(numofiterations);
+	meanfits = std::vector<double>(numofiterations);
+	bests = std::vector<double>(numofiterations);
 
 	this->time = time;
 	this->realdata = realdata;
 
-	this->found_freqs = found_freqs;
+//	this->found_freqs = found_freqs;
+	this->founds = founds;
 	to_skip = std::vector<std::vector<size_t>>();
 	this->m = m;
 	this->cv = cv;
 
-	float ts = time->at(1) - this->time->at(0);
+	double ts = time->at(1) - this->time->at(0);
 	fs = 1/ts;
 
 	typedef std::chrono::high_resolution_clock myclock;
@@ -420,7 +308,7 @@ PSO::PSO(	size_t numofparticles,
 
 	generator = std::default_random_engine(seed);
 	//generator = std::default_random_engine();
-	distribution = std::uniform_real_distribution<float>(0.0, 1.0);
+	distribution = std::uniform_real_distribution<double>(0.0, 1.0);
 
 	fft(*this->realdata, A, P);
 	size_t max_A_idx = std::distance(A.begin(), std::max_element(A.begin(), A.end()));
@@ -462,14 +350,16 @@ void PSO::run() {
 		update();
 
 		to_skip.clear();
-		if (id > 0 && !helper.first) {
+//		if (id > 0 && !helper.first) {
+		if (id > 0) {
 			std::unique_lock<std::mutex> lk(m->at(id-1));
 			cv->at(id-1).wait(lk, [&]{
 					return freq_ready.at(id-1);});
-			//float freq_found = found_freqs->at(id-1);
+			//double freq_found = found_freqs->at(id-1);
 
 			for (size_t i = 0; i < id; ++i) {
-				size_t f = found_freqs->at(i)*numofsamples/fs;
+				size_t f = founds->at(i)[1]*numofsamples/fs;
+//				size_t f = found_freqs->at(i)*numofsamples/fs;
 				std::vector<size_t> idxL;
 				std::vector<size_t> idxR;
 				findMinimas(A_gauss, 0, f, idxL);
@@ -481,41 +371,23 @@ void PSO::run() {
 			cv->at(id-1).notify_one();
 		}
 
-		//fitnessfunc_multi();
 		fitnessfunc();
-//		if (id == 2 && t == numofiterations - 10) {
-//			std::cout << "entered" << std::endl;
-//			std::vector<float> temp_particle(this->gbest);
-//			std::vector<float> freqs;
-//			get_frequencies(freqs, numofsamples, fs);
-//			std::cout << "got frequencies" << std::endl;
-//
-//			std::ofstream myfile;
-//			for (size_t f = 0; f < freqs.size(); ++f) {
-//				float freq = freqs[f];
-//				temp_particle[1] = freq;
-//				double penalty = fitnessfunc_singleparticle(temp_particle);
-//
-//				std::cout << f << "/" << freqs.size() << ", " << freq << ": " << penalty << std::endl;
-//				myfile.open ("fitnesses.log", std::ios::out | std::ios::app);
-//				myfile  << freq << ";" << penalty << std::endl;
-//				myfile.close();
-//			}
-//		}
 		calcgbest();
 		std::vector<double>::iterator maxfit_it = std::max_element(std::begin(fitnesses), std::end(fitnesses));
 		worsts[t] = *maxfit_it;
 		bests[t] = gbestfit;
 
 		//make sure first freq is ready before 2nd thread tries to use it
-		if (id < found_freqs->size() && !helper.first) {
+//		if (id < found_freqs->size() && !helper.first) {
+		if (id < founds->size()) {
 		    std::lock_guard<std::mutex> lk(m->at(id));
-			found_freqs->at(id) = gbest.at(1)/2/M_PI;
+			founds->at(id)[1] = gbest.at(1)/2/M_PI;
 			freq_ready[id] = true;
 		    cv->at(id).notify_one();
 		}
 		//wait for the freq to be read
-		if (id < found_freqs->size() && !helper.first) {
+//		if (id < founds->size() && !helper.first) {
+		if (id < founds->size()) {
 			std::unique_lock<std::mutex> lk(m->at(id));
 			cv->at(id).wait(lk, [&]{
 					return freq_set[id];
@@ -526,6 +398,6 @@ void PSO::run() {
 	}
 }
 
-std::vector<float> PSO::getgbest() { return gbest; }
+std::vector<double> PSO::getgbest() { return gbest; }
 
-float PSO::getgbestfit() { return gbestfit; }
+double PSO::getgbestfit() { return gbestfit; }

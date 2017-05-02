@@ -64,4 +64,4 @@ namespace Fft {
 	
 }
 
-void fft(std::vector<double> &data, std::vector<float> &A, std::vector<float> &P);
+void fft(std::vector<double> &data, std::vector<double> &A, std::vector<double> &P);

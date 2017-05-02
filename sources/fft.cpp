@@ -210,7 +210,7 @@ static size_t reverseBits(size_t x, unsigned int n) {
 
 
 
-void fft(std::vector<double> &data, std::vector<float> &A, std::vector<float> &P) {
+void fft(std::vector<double> &data, std::vector<double> &A, std::vector<double> &P) {
 	size_t length = data.size();
 
 	std::vector<double> temp_real(data);
@@ -228,8 +228,8 @@ void fft(std::vector<double> &data, std::vector<float> &A, std::vector<float> &P
 	);
 
 	size_t length_2 = size_t(length/2) + 1;
-	A = std::vector<float>(length_2);
-	P = std::vector<float>(length_2);
+	A = std::vector<double>(length_2);
+	P = std::vector<double>(length_2);
 
 
 	std::transform(A.begin(),
@@ -237,7 +237,7 @@ void fft(std::vector<double> &data, std::vector<float> &A, std::vector<float> &P
 			Z.begin(),
 			A.begin(),
 		[length](double a_t, std::complex<double> z){
-			float a = std::abs(z);
+			double a = std::abs(z);
 			a /= length;
 			a *= 2;
 			return a;
@@ -249,7 +249,7 @@ void fft(std::vector<double> &data, std::vector<float> &A, std::vector<float> &P
 			Z.begin(),
 			P.begin(),
 		[](double p_t, std::complex<double> z){
-			float p = std::arg(z)*180/M_PI;
+			double p = std::arg(z)*180/M_PI;
 			return p;
 		});
 }
