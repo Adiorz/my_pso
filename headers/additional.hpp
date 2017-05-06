@@ -8,7 +8,12 @@
 
 void donothing(std::vector<double> *realdata, std::vector<double> &fitnesses, std::vector< std::vector<double> > &X);
 
-void init_minmax(std::vector<double> &xmin, std::vector<double> &xmax, size_t numofdims, std::vector<double> &data, size_t max_freq = -1);
+
+static bool abs_compare(int a, int b)
+{
+    return (std::abs(a) < std::abs(b));
+}
+void init_minmax(std::vector<double> &xmin, std::vector<double> &xmax, size_t numofdims, std::vector<double> &data, size_t fs = -1);
 void get_frequencies(std::vector<double> &freq, size_t numofsamples, double fs);
 
 void calc_response(std::vector<std::vector<double>> results, size_t numofsamples, double ts, std::vector<double> &response);

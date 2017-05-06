@@ -65,6 +65,7 @@ public:
 
 //    std::vector<double> *found_freqs;
     std::vector<std::vector<double>> *founds;
+    std::vector<std::vector<double>> local_copy_of_founds;
     std::vector<std::vector<size_t>> to_skip;
     std::vector<std::mutex> *m;
     std::vector<std::condition_variable> *cv;
@@ -81,7 +82,7 @@ public:
 
     double fitnessfunc_singleparticle(std::vector<double> &p);
 
-    double calc_response(double amp, double omega, double phase, double bamp, double t);
+    double calc_response(double amp, double omega, double phase, double damp, double t);
 
     void calc_response(std::vector<std::vector<double>> results, size_t numofsamples, double ts, std::vector<double> &response);
 

@@ -49,12 +49,7 @@ void DataStream::parseFile(std::ifstream& file, size_t column, size_t number, si
 	}
 }
 
-static bool abs_compare(int a, int b)
-{
-    return (std::abs(a) < std::abs(b));
-}
-
-void init_minmax(std::vector<double> &xmin, std::vector<double> &xmax, size_t numofdims, std::vector<double> &data, size_t max_freq) {
+void init_minmax(std::vector<double> &xmin, std::vector<double> &xmax, size_t numofdims, std::vector<double> &data, size_t fs) {
     xmin = std::vector<double>(numofdims);
     xmax = std::vector<double>(numofdims);
     std::vector<double>::iterator max_abs_it;
@@ -64,10 +59,11 @@ void init_minmax(std::vector<double> &xmin, std::vector<double> &xmax, size_t nu
     xmin[0] = 0; //amp
     xmax[0] = 2*max_abs;
     xmin[1] = 2*20*M_PI; //omega
-    if (max_freq == -1)
-    	xmax[1] = 2*3000*M_PI;//359.99f;
-    else
-    	xmax[1] = 2*M_PI*max_freq;
+//    if (fs == -1)
+//    	xmax[1] = 2*3000*M_PI;//359.99f;
+//    else
+    xmax[1] = M_PI*fs; //2*M_PI*fs/2 so it does not exceed half of the sampling frequency
+//    xmax[1] = 2*M_PI*5000;
     xmin[2] = 0; //phase
     xmax[2] = 0.2*M_PI;//1000;
     xmin[3] = 0.0001*xmin[1]; //damping

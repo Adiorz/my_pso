@@ -43,15 +43,19 @@ int main(int argc, const char ** argv)
 {
 try {
     size_t numofparticles = atoi(argv[1]);
+    numofparticles = 20;
     size_t numofiterations = atoi(argv[2]);
-    std::string file_name(argv[3]);
-    std::string deriv(argv[4]);
+    std::string file_name(argv[4]);
+    std::cout << "Filename: " << file_name << std::endl;
+    std::string window_name(argv[5]);
+    size_t modes_num = atoi(argv[3]);
 //    file_name = "data/s10_mod_04.lvm";
 //    file_name = "data/bp2_mod_45_01.lvm";
 //    file_name = "data/bp2_mod_90_01.lvm";
 
 	DataStream time(file_name, 0, 5000, 0);
-	DataStream channel0(file_name, 1, 5000, 166);
+//	DataStream channel0(file_name, 1, 5000, 166);
+	DataStream channel0(file_name, 1, 5000, 0);
 	size_t numofsamples = channel0.size();
 	std::vector<double> channel0_real	(channel0.get());
 	std::vector<double> time_real		(time.get());
@@ -62,41 +66,46 @@ try {
 	std::vector<double> A;
 	std::vector<double> P;
 
-    std::vector<std::vector<double>> sim {{10., 200*2*M_PI, 0., 0.005},{3., 350*2*M_PI, 0., 0.01}};
-    sim[0][3] *= sim[0][2];
-    sim[1][3] *= sim[1][2];
+//    std::vector<std::vector<double>> sim {{10., 200, 0., 0.005},{3, 350, 0., 0.01},{5, 750, 0., 0.02}};
+    std::vector<std::vector<double>> sim {{10., 200, 0., 0.005},{3, 350, 0., 0.01},{5, 750, 0., 0.02},{1, 700, 0., 0.01}};
+    for (size_t i = 0; i < sim.size(); ++i) {
+        sim[i][1] *= 2*M_PI;
+        sim[i][3] *= sim[i][1];
+    }
+    for (size_t i = 0; i < sim.size(); ++i)
+    	for (size_t j = 0; j < numofdims; ++j)
+    		std::cout << std::fixed << sim[i][j] << std::endl;
     std::vector<double> simulated;
-    calc_response(
-    		sim,
-			numofsamples,
-			ts,
-			simulated);
+    calc_response(sim, numofsamples, ts, simulated);
 
-//	std::vector<double> *used_data = &channel0_real;
-	std::vector<double> *used_data = &simulated;
+	std::vector<double> *used_data = &channel0_real;
+//	std::vector<double> *used_data = &simulated;
 	fft(*used_data, A, P);
 
 	size_t max_A_idx = std::distance(A.begin(), std::max_element(A.begin(), A.end()));
+	size_t max_D_idx = std::distance(used_data->begin(), std::max_element(used_data->begin(), used_data->end()));
 	std::cout << "Original dominating amp: " << A[max_A_idx] << std::endl;
+	std::cout << "Original dominating amp: " << used_data->at(max_D_idx) << std::endl;
 	std::cout << "Original dominating freq: " << freq[max_A_idx] << std::endl;
     std::cout << "Number of particles: " << numofparticles << std::endl;
     std::cout << "Number of iterations: " << numofiterations << std::endl;
 
 	size_t t_num = std::thread::hardware_concurrency();
-	t_num = 2;
+//	t_num = 4;
+	t_num = modes_num;
 	PSO::freq_set = std::vector<bool> (t_num-1, false);
 	PSO::freq_ready = std::vector<bool> (t_num-1, false);
 	//std::cout << "Number of detected threads: " << t_num << std::endl;
 
 	std::vector< std::vector<double> > init(numofparticles);
 	std::vector<double> xmin, xmax;
-	init_minmax(xmin, xmax, numofdims, channel0_real, freq[freq.size()-1]);
+	init_minmax(xmin, xmax, numofdims, channel0_real, fs);//freq[freq.size()-1]);
 
     std::vector<std::thread> threads(t_num);
     std::vector<std::thread> helper_threads(t_num);
 
-    std::vector<std::vector<double>> *founds = new std::vector<std::vector<double>>(t_num-1);
-    for (size_t i = 0; i < t_num-1; ++i)
+    std::vector<std::vector<double>> *founds = new std::vector<std::vector<double>>(t_num);
+    for (size_t i = 0; i < t_num; ++i)
     	founds->at(i) = std::vector<double>(numofdims);
 	std::vector<std::mutex> mutexes(t_num);
 	std::vector<std::condition_variable> cvs(t_num);
@@ -131,8 +140,8 @@ try {
 		f_r = idxR[0];
 		std::cout << "L: " << f_l << std::endl;
 		std::cout << "R: " << f_r << std::endl;
-//		PSO *helper_pso = new PSO(1.5*numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, t_num + p, found_freqs, &mutexes, &cvs, f_l, f_r, std::pair<bool, size_t> (true, p));
-		PSO *helper_pso = new PSO(1.5*numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, p, founds, &mutexes, &cvs, f_l, f_r, std::pair<bool, size_t> (true, p));
+//		PSO *helper_pso = new PSO(numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, p, founds, &mutexes, &cvs, f_l, f_r, std::pair<bool, size_t> (true, p));
+		PSO *helper_pso = new PSO(1.5*numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), 1.5*numofiterations, p, founds, &mutexes, &cvs, f_l, f_r, std::pair<bool, size_t> (true, p));
 		helper_psos->push_back(helper_pso);
 		helper_threads[p] = std::thread(&PSO::run, std::ref(*helper_pso));
 	}
@@ -195,7 +204,6 @@ try {
 #ifdef PLOT
     size_t numofsamples_2 = (size_t)(numofsamples/2)+1;
     std::vector<double *> A_approx(helper_psos->size()+1);
-//    double mins[t_num];
 
     for (size_t i = 0; i < helper_psos->size(); ++i) {
 		A_approx[i] = new double[numofsamples_2];
@@ -204,7 +212,6 @@ try {
 				time_real,
 				numofsamples,
 				A_approx[i]);
-//		mins[i] = min(A_approx[i], numofsamples_2);
     }
 
 	A_approx[helper_psos->size()] = new double[numofsamples_2];
@@ -218,38 +225,45 @@ try {
 			numofsamples,
 			A_approx[helper_psos->size()]);
 
-//    double min_val = min(mins, t_num);
-//    double g[numofsamples_2];
     double y[numofsamples_2];
     double x[numofsamples_2];
 	for(size_t i = 0; i < numofsamples_2; ++i) {
-//		g[i] = 20*log(A_gauss[i]);
 		x[i] = freq[i];
 		y[i] = 20*log(A[i]);
 	}
     ScatterPlot *w = new ScatterPlot(x, y, (size_t)numofsamples_2);
-    //w->addData(x, g);
 
     w->setXArray(freq[0], freq[numofsamples_2-1]);
     //std::cout << "min: " << min_val << std::endl;
     //w->setYArray(min_val, 1.1*20*log(A[max_A_idx]));
-    w->setYArray(-200, 100);
+    w->setYArray(-300, 100);
     for (size_t i = 0; i < helper_psos->size(); ++i) {
     	w->addData(x, A_approx[i]);
     }
     w->addData(x, A_approx[helper_psos->size()]);
-    w->display(argc-3, argv+4);
-    delete w;
-    for (size_t i = 0; i < A_approx.size(); ++i)
-    	delete A_approx[i];
+
+    for (size_t i = 0; i < psos->size(); ++i) {
+    	delete psos->at(i);
+    }
+    for (size_t i = 0; i < helper_psos->size(); ++i) {
+    	delete helper_psos->at(i);
+    }
+    delete founds;
 #endif
 
-    for (size_t i = 0; i < psos->size(); ++i)
-    	delete psos->at(i);
-    for (size_t i = 0; i < helper_psos->size(); ++i)
-    	delete helper_psos->at(i);
-    delete founds;
-
+#ifdef PLOT
+    //    double y_[0];
+    //    double x_[0];
+    //    ScatterPlot *w1 = new ScatterPlot(x_, y_, 0);
+    ////    w1->display(argc-4, argv+5);
+    //    w1->display(4, argv+5);
+    //    delete w1;
+    w->display(4, argv+5);
+    delete w;
+    for (size_t i = 0; i < A_approx.size(); ++i) {
+    	delete A_approx[i];
+    }
+#endif
 	}
     catch (std::exception& e)
     {
