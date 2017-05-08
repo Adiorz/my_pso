@@ -19,6 +19,10 @@ void get_frequencies(std::vector<double> &freq, size_t numofsamples, double fs);
 void calc_response(std::vector<std::vector<double>> results, size_t numofsamples, double ts, std::vector<double> &response);
 void approximate_amp(std::vector<std::vector<double>> factors, std::vector<double> &time_real, size_t numofsamples, double *out);
 
+size_t find_max_02_id(double max, std::vector<double> *realdata);
+
+void correct_amp_and_damp(std::vector<double> *realdata, std::vector<double> f, double fs);
+
 class DataStream {
 public:
 	DataStream(std::string file_name, size_t column, size_t number, size_t to_skip);

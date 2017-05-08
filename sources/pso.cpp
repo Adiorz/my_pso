@@ -47,11 +47,11 @@ void PSO::initpopulation() {
 			}
 		}
 		if (helper.first && i == 0) {
-			std::cout << founds->size() << std::endl;
-			std::cout << founds->at(id)[0] << std::endl;
-			std::cout << founds->at(id)[1] << "(" << founds->at(id)[1]/2/M_PI << ")" << std::endl;
-			std::cout << founds->at(id)[2] << std::endl;
-			std::cout << founds->at(id)[3] << "(" << founds->at(id)[3]/founds->at(id)[1] << ")" << std::endl;
+//			std::cout << founds->size() << std::endl;
+//			std::cout << founds->at(id)[0] << std::endl;
+//			std::cout << founds->at(id)[1] << "(" << founds->at(id)[1]/2/M_PI << ")" << std::endl;
+//			std::cout << founds->at(id)[2] << std::endl;
+//			std::cout << founds->at(id)[3] << "(" << founds->at(id)[3]/founds->at(id)[1] << ")" << std::endl;
 			X.at(i) = std::vector<double> (founds->at(id));
 		}
 	}
@@ -311,8 +311,8 @@ PSO::PSO(	size_t numofparticles,
 	this->Xmax = Xmax;
 	this->Xmin = Xmin;
 	if (helper.first){
-		std::cout << "l: " << skip_low << std::endl;
-		std::cout << "h: " << skip_high << std::endl;
+//		std::cout << "l: " << skip_low << std::endl;
+//		std::cout << "h: " << skip_high << std::endl;
 		float new_min = skip_low*2*M_PI*fs/numofsamples;
 		float new_max = skip_high*2*M_PI*fs/numofsamples;
 		if (new_min > this->Xmin[1])
@@ -332,7 +332,9 @@ PSO::PSO(	size_t numofparticles,
 
 	fft(*this->realdata, A, P);
 	size_t max_A_idx = std::distance(A.begin(), std::max_element(A.begin(), A.end()));
+	size_t max_D_idx = std::distance(realdata->begin(), std::max_element(realdata->begin(), realdata->end()));
 	max_A = A[max_A_idx];
+//	max_A = realdata->at(max_D_idx);
 	A_gauss = gaussian_filter(A, 6);
 
 	init_max_velocities();
@@ -349,9 +351,17 @@ void PSO::run() {
 	for(size_t t = 0; t < numofiterations; t++)
 	{
 		size_t progress = t*100 / numofiterations;
-		if (progress % 2 == 0) {
+		if (progress % 5 == 0) {
 			addparticle();
 			addparticle();
+			addparticle();
+			addparticle();
+			addparticle();
+//			addparticle();
+//			addparticle();
+//			addparticle();
+//			addparticle();
+//			addparticle();
 		}
 		if ((progress % 10 == 0) && (!prog[progress])) {
 			std::cout << "id: " << id << ": " << progress << ": " << std::fixed << std::setprecision(17) << gbestfit << std::setprecision(5) << std::endl;//<< ", the worst: " << fitnesses[the_worst_fit_idx] << std::endl;

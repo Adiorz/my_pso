@@ -88,7 +88,7 @@ void calc_response(std::vector<std::vector<double>> results, size_t numofsamples
 		double bamp = results[i][3];
 		for (size_t j = 0; j < numofsamples; ++j) {
 			double t = j*ts;
-			response[j] += amp*sin(omega*sqrt(1-(bamp/omega)*(bamp/omega))*t+phase)*
+			response[j] += amp*sin(omega*sqrt(1-(bamp/omega)*(bamp/omega))*t)*
 					exp(-bamp*t);
 		}
 	}
@@ -119,6 +119,50 @@ void approximate_amp(
     size_t numofsamples_2 = (size_t)(numofsamples/2)+1;
 	for(size_t i = 0; i < numofsamples_2; ++i)
 		out[i] = 20*log(A_appr[i]);
+}
+
+size_t find_max_02_id(double realdata_max, std::vector<double> *realdata) {
+	size_t l = realdata->size();
+//	for (size_t i = 0; i < l; ++i)
+//		std::cout << realdata->at(i) << std::endl;
+	size_t l_08 = floor(0.8*l);
+	std::cout << "l: " << l << std::endl;
+	std::cout << "l_08: " << l_08 << std::endl;
+	std::cout << "max: " << realdata_max << std::endl;
+	size_t max_02_id = l_08;
+	for (size_t i = 0; i < l_08; ++i) {
+		double val = realdata->at(i);
+		std::cout << i << ": " << val << std::endl;
+		if (val > 0.2*realdata_max)
+			max_02_id = i;
+	}
+	return max_02_id;
+}
+
+void correct_amp_and_damp(std::vector<double> *realdata, std::vector<double> f, double fs) {
+	std::vector<double> temp(*realdata);
+	//for (auto& f : temp) { f = f < 0 ? -f : f;}
+	std::vector<double> filtered_realdata(*realdata);//filtered realdata - band (f[0], f[2])
+	size_t max_filtered_realdata_idx = std::distance(filtered_realdata.begin(), std::max_element(filtered_realdata.begin(), filtered_realdata.end()));
+	double max_filtered_real = filtered_realdata[max_filtered_realdata_idx];
+	//int max_sign = ((*realdata)[max_filtered_realdata_idx]) < 0 ? -1 : 1;
+
+	size_t max_filtered_realdata_02_idx = find_max_02_id(max_filtered_realdata_idx, realdata);
+	double max_filtered_realdata_02 = realdata->at(max_filtered_realdata_02_idx);
+	size_t how_many_samples_from_end = fs/f[1]*2*M_PI*1.15;
+
+	// samples from (max_02_id - how_many_samples_from_end) to floor(0.8*realdata->size())
+	// select data
+//	std::vector<double>::const_iterator first = realdata->begin() + (max_filtered_realdata_02_idx - how_many_samples_from_end);
+//	std::vector<double>::const_iterator last = realdata->begin() + floor(0.8*realdata->size());
+//	std::vector<double> selected_data(first, last);
+//	size_t selected_data_max_idx = std::distance(selected_data.begin(), std::max_element(selected_data.begin(), selected_data.end()));
+
+	double damp_approx = log(max_filtered_real/max_filtered_realdata_02)/
+			(max_filtered_realdata_02_idx-max_filtered_realdata_idx);///(f[1]/2/M_PI*)
+	std::cout << "correct" << std::endl;
+	std::cout << "approx_damp: " << damp_approx << std::endl;
+	//temp.
 }
 
 void approximate_amp(

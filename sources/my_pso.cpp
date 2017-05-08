@@ -22,7 +22,7 @@ using namespace std;
 #include <mutex>
 #include <condition_variable>
 
-#define PLOT
+//#define PLOT
 #ifdef PLOT
 #include "../headers/scatter.h"
 #endif
@@ -84,6 +84,8 @@ try {
 
 	size_t max_A_idx = std::distance(A.begin(), std::max_element(A.begin(), A.end()));
 	size_t max_D_idx = std::distance(used_data->begin(), std::max_element(used_data->begin(), used_data->end()));
+	//correct_amp_and_damp(&simulated, std::vector<double>{180, 200, 210}, fs);
+	//return 0;
 	std::cout << "Original dominating amp: " << A[max_A_idx] << std::endl;
 	std::cout << "Original dominating amp: " << used_data->at(max_D_idx) << std::endl;
 	std::cout << "Original dominating freq: " << freq[max_A_idx] << std::endl;
@@ -112,6 +114,7 @@ try {
 
     std::vector<PSO*> *psos = new std::vector<PSO*>();
 	psos->push_back(new PSO(numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, 0, founds, &mutexes, &cvs));
+
     for (size_t p = 1; p < t_num; ++p) {
     	PSO *pso = new PSO(numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, p, founds, &mutexes, &cvs);
     	psos->push_back(pso);
@@ -133,13 +136,14 @@ try {
 	std::vector<size_t> idxR;
 	for (size_t p = 0; p < t_num; ++p) {
 		f = psos->at(p)->getgbest().at(1)/2/M_PI*numofsamples/fs;
-		std::cout << "fixed: " << f << std::endl;
+//		std::cout << "fixed: " << f << std::endl;
 		findMinimas(A_gauss, 0, f, idxL);
 		findMinimas(A_gauss, f, numofsamples-1, idxR);
 		f_l = idxL[idxL.size() - 1];
 		f_r = idxR[0];
-		std::cout << "L: " << f_l << std::endl;
-		std::cout << "R: " << f_r << std::endl;
+//		std::cout << "L: " << f_l << std::endl;
+//		std::cout << "R: " << f_r << std::endl;
+		std::cout << "helper " << p << ": <" << f_l << ", " << f << ", " << f_r << ">" << std::endl;
 //		PSO *helper_pso = new PSO(numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), numofiterations, p, founds, &mutexes, &cvs, f_l, f_r, std::pair<bool, size_t> (true, p));
 		PSO *helper_pso = new PSO(1.5*numofparticles, numofdims, xmin, xmax, &time_real, &(*used_data), 1.5*numofiterations, p, founds, &mutexes, &cvs, f_l, f_r, std::pair<bool, size_t> (true, p));
 		helper_psos->push_back(helper_pso);
@@ -165,6 +169,7 @@ try {
     std::cout << "helpers:" << std::endl;
     for (size_t p = 0; p < helper_psos->size(); ++p) {
         std::cout << "-------" << std::endl;
+        std::cout << "helper: " << p << std::endl;
     	std::cout << "amp: " << helper_psos->at(p)->getgbest().at(0) << std::endl;
     	std::cout << "freq: " << helper_psos->at(p)->getgbest().at(1)/2/M_PI << std::endl;
     	std::cout << "phase: " << helper_psos->at(p)->getgbest().at(2) << std::endl;
@@ -236,7 +241,7 @@ try {
     w->setXArray(freq[0], freq[numofsamples_2-1]);
     //std::cout << "min: " << min_val << std::endl;
     //w->setYArray(min_val, 1.1*20*log(A[max_A_idx]));
-    w->setYArray(-300, 100);
+    w->setYArray(-150, 100);
     for (size_t i = 0; i < helper_psos->size(); ++i) {
     	w->addData(x, A_approx[i]);
     }
